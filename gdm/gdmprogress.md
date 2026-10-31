@@ -3,22 +3,32 @@
 ## Done
 
 - Created an isolated React/Vite frontend starter in `gdm/`.
-- Added the initial Brightloop welcome screen and responsive base styles.
+- Built responsive staff views for the Billing Control Tower, subscriptions,
+  quotations, invoices, catalog, and customers.
+- Built a customer portal view with subscription controls and invoice/payment
+  access, scoped to the seeded demo customer.
+- Added contract-shaped preview/run data, INR formatting from paise, billing-run
+  results, partial-payment validation, and local subscription transitions.
+- Added empty states, search, responsive navigation, and print-friendly layout
+  rules.
 
 ## Next
 
-- Build contract-shaped mock data and the admin/staff and customer navigation.
-- Implement the seeded demo path, prioritizing the Billing Control Tower.
-- Replace mock calls with API calls as endpoints are handed off.
+- Replace in-memory demo state with the shared API, including `/api/auth/me`
+  after refresh and backend-provided `permitted_actions`.
+- Add loading/error handling, pagination, and API-backed product, plan, and
+  quotation forms.
+- Verify role navigation, refresh persistence, invoice print output, and a
+  second no-op billing run against the integrated backend.
 
 ## Blocked
 
-- No blockers for the starter. Backend endpoints are still being handed off;
-  keep the initial UI aligned to `../CONTRACT.md` and report any mismatches to GSK.
+- API integration is blocked until the backend endpoints are available together
+  for the seeded demo. The current interactions use local in-memory demo data.
 
 ## API response mismatches
 
-- None observed; the starter does not call the API yet.
+- None observed; the UI has not called the API yet.
 
 ## Verification
 
