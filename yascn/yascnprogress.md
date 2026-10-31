@@ -75,3 +75,62 @@ tested both by Django's test runner and against a separate temporary on-disk DB.
 - Corrected `due_subscriptions(as_of)` to include missed pre-expiry cycles even when the contract has now expired; GSK's period calculator stops at exclusive expiry.
 - Restricted catalog reads to staff/admin so customer accounts cannot read product cost prices or discount rules. Added a regression test.
 - Latest YASCN suite: **23 tests passed**. Shared URLs now include `yascn.urls`; ALIAR is still needed for the full Django app.
+
+## Checkpoint 3 — Phase 2 core integration handoff
+
+**Done:** Synced `97f4fa9`, including GDM's dashboard implementation. Delivered
+`yascn.billing.due_candidates(as_of)`, returning GSK's exact `BillingCandidate`
+shape from real YASCN models. It maps active effective-price lines, plan fees,
+active tax rates, product rules, and the assigned whole-subscription discount.
+Period-specific discount eligibility stays with GSK. Historical prices and
+pre-expiry catch-up periods are preserved, including after plan signup
+availability ends. Mapping uses three queries for both 1 and 13 subscriptions.
+
+Added fourteen regression/integration tests: database-backed preview, shared
+HTTP routing with token authentication/role checks, quotation-to-active-to-preview,
+variant pricing without double counting, inactive/missing taxes, discount
+selection and projected usage, skipped states, month-end catch-up, historical
+catalog prices, and bounded query counts. Preview consumes no discount usage and
+never advances `next_bill_date`. HTTP tests provide a read repository and assume
+no existing invoices; they do not replace ALIAR's persistence or prove reruns.
+
+Hardened core transitions by locking/reloading current state inside the service,
+including non-HTTP calls. Updated the seed command to use its returned instance.
+Expired draft template validity now blocks `quote` instead of advertising an
+action that would immediately expire. Updated `HANDOFF.md` with exact mapper
+imports and the current integration state.
+
+**Next:** GSK delegates its repository read method to
+`yascn.billing.due_candidates`, connects ALIAR's invoice creation/existence checks,
+and verifies invoice/payment/dashboard plus second-run idempotency. GDM replaces
+local demo state with authenticated backend calls. Once the integrated gate
+passes, implement the remaining YASCN lifecycle and password reset flows.
+
+**Blocked:** `gsk.integration.get_repository()` still raises `IntegrationPending`.
+`aliar/` contains only a contribution note, with no invoice/payment implementation.
+The frontend now has dashboard screens but still uses in-memory demo data.
+The full integrated demo gate has **not** passed. Per `yascn.md`, password reset,
+pause/resume/renew/close, expiry/auto-close, and next-cycle edits remain deferred.
+No code outside YASCN was edited for this checkpoint.
+
+**Model/API changes:** No shared contract or HTTP route changes. Added a Python
+read adapter and strengthened existing transition validation. `transition`
+returns a fresh locked model instance; callers should retain its return value.
+**Migrations:** No schema changes; `0001_initial` remains the only migration.
+
+**Latest verification:**
+
+- `.venv/bin/python manage.py test yascn --settings=yascn.test_settings`:
+  **37 tests passed**; system check 0 issues.
+- `.venv/bin/python manage.py test yascn gsk.tests --noinput`:
+  **48 tests passed with shared settings**; system check 0 issues.
+- Fresh temporary on-disk SQLite database using `gsk.settings`: all migrations,
+  `check`, and empty ORM candidate mapping passed; database removed afterward.
+- `makemigrations yascn --check --dry-run` with shared and isolated settings:
+  no changes detected.
+- `cd gdm && npm run build`: passed on the newly synced dashboard source.
+- `git diff --check`: passed.
+
+The earlier missing-app startup error is resolved by the ALIAR namespace
+directory: shared checks and migrations now pass, but that does not establish
+that any invoice/payment functionality exists.

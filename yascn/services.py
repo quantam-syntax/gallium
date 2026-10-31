@@ -1,11 +1,11 @@
 from datetime import datetime, time, timedelta
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Prefetch
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from .models import Subscription
+from .models import Subscription, SubscriptionLine
 
 
 def expire_quotations(queryset):
@@ -18,12 +18,18 @@ def due_subscriptions(as_of):
     return (Subscription.objects.filter(status="active", next_bill_date__lte=as_of,
                                         next_bill_date__lt=F("expiry_date"))
             .select_related("customer", "plan__tax", "subscription_discount")
-            .prefetch_related("lines__product", "lines__variant", "lines__tax")
+            .prefetch_related(Prefetch("lines", queryset=SubscriptionLine.objects.select_related(
+                "product", "variant", "tax").order_by("pk")))
             .order_by("next_bill_date", "pk"))
 
 
 @transaction.atomic
 def transition(subscription, action):
+    """Apply a core action and return the freshly locked subscription instance."""
+    # Lock and reload here too: callers other than HTTP views must not activate
+    # using stale state, permissions, or dates retained on a Python instance.
+    subscription = (Subscription.objects.select_for_update()
+                    .select_related("customer", "plan").get(pk=subscription.pk))
     if action not in subscription.permitted_actions:
         raise ValidationError({"action": "Action is not permitted in the current state."})
     if not subscription.customer.is_active or subscription.customer.role != "customer":

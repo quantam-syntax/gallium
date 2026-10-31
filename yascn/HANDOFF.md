@@ -1,4 +1,4 @@
-# Phase 1 handoff to GSK, ALIAR, and GDM
+# YASCN core integration handoff to GSK, ALIAR, and GDM
 
 YASCN implements the shared contract in `CONTRACT.md`. All delivered source,
 migrations, tests, demo data creation, and documentation live in `yascn/`.
@@ -7,10 +7,14 @@ migrations, tests, demo data creation, and documentation live in `yascn/`.
 
 1. Keep `AUTH_USER_MODEL = "yascn.User"` before the first migration. `yascn` and
    `rest_framework.authtoken` are already in `gsk.settings.INSTALLED_APPS`.
-2. Deliver/register ALIAR's app before running shared settings; it is absent now.
-3. Import `include` in `gsk/urls.py` and register
-   `path("api/", include("yascn.urls"))` alongside the existing billing routes.
-4. Run migrations, check, and the app tests with the integrated settings. No
+2. Deliver ALIAR's actual invoice/payment models, migrations, API, and creation
+   service. The current `aliar/` directory contains only `CONTRIBUTING.md`;
+   Django accepts the namespace app and checks pass, but no finance backend exists.
+3. YASCN's routes are already registered by GSK via
+   `path("api/", include("yascn.urls"))` alongside billing routes.
+4. Use `yascn.billing.due_candidates` for the billing repository read side (see
+   below), then connect ALIAR's transactional invoice creation in `gsk/integration.py`.
+5. Run migrations, check, and the app tests with the integrated settings. No
    root configuration or another owner's source has been edited by YASCN.
 
 All model imports are from `yascn.models`: `User`, `Product`, `Variant`, `Plan`,
@@ -26,6 +30,8 @@ From the repository root:
 .venv/bin/python manage.py test yascn --settings=yascn.test_settings -v 2
 .venv/bin/python manage.py check --settings=yascn.test_settings
 .venv/bin/python manage.py makemigrations yascn --check --dry-run --settings=yascn.test_settings
+.venv/bin/python manage.py test yascn gsk.tests
+.venv/bin/python manage.py check
 ```
 
 `test_settings` deliberately omits ALIAR, uses in-memory SQLite by default,
@@ -133,6 +139,30 @@ demo number. No sequential numbering format was prescribed by the contract.
 
 ## Billing adapter data for GSK
 
+The complete read mapper is now implemented and tested with GSK's actual preview
+calculation and shared HTTP route:
+
+```python
+from yascn.billing import due_candidates
+
+class Repository:
+    def due_candidates(self, as_of):
+        return due_candidates(as_of)
+    # GSK/ALIAR still implement invoice_exists and create_period_if_missing.
+```
+
+It returns `list[gsk.service.BillingCandidate]`. Due subscriptions, active
+effective-price lines, tax rates, assigned subscription discounts, and matching
+product discounts are mapped without changing stored records. Loading 1 or 13
+subscriptions with product lines uses the same **three database queries**;
+an empty due list uses one query. Inactive/missing taxes map to zero. Product
+discounts are restricted to active rules for products on active due lines;
+dates, thresholds, and usage limits are preserved for GSK's period-specific
+eligibility checks, including old catch-up periods. Inactive catalog products
+do not remove existing contract lines. No variant surcharge is added again.
+
+The lower-level ORM query remains available:
+
 ```python
 from yascn.services import due_subscriptions
 
@@ -171,7 +201,20 @@ product discounts require a product. Values are paise or basis points as in the
 contract. GSK remains responsible for invoice uniqueness, discount consumption,
 locking, and transactional cursor advancement with ALIAR.
 
+`yascn.services.transition(subscription, action)` now reloads and locks the
+subscription before validating its current state, customer, and plan. Callers
+must use the returned fresh instance. This prevents stale Python model state
+from reopening a subscription that was already closed. Drafts whose template
+validity has elapsed no longer advertise or accept `quote`.
+
 ## Phase 2 boundary
+
+The unblocked core integration handoff is delivered. Tests use the real YASCN
+database models and GSK's preview function; HTTP preview tests inject only a
+read repository and an explicit no-existing-invoice answer. They do **not** prove
+invoice persistence, rerun idempotency, payments, or the full integrated demo.
+Shared billing endpoints still return 503 until GSK implements the repository.
+The new GDM dashboard is present but still uses local in-memory demo data.
 
 Password reset/SMTP delivery, pause/resume/renew/close, subscription-expiry state
 maintenance/auto-close, and customer next-cycle add-on/quantity changes are

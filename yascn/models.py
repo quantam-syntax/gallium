@@ -193,7 +193,7 @@ class Subscription(models.Model):
     def permitted_actions(self):
         # Phase 1 exposes only the core staff quotation-to-active path.
         now = timezone.now()
-        if self.quote_expires_at and now >= self.quote_expires_at and self.status in ("quotation", "confirmed"):
+        if self.quote_expires_at and now >= self.quote_expires_at and self.status in ("draft", "quotation", "confirmed"):
             return []
         if self.expiry_date <= timezone.localdate():
             return []

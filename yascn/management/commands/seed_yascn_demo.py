@@ -60,7 +60,7 @@ class Command(BaseCommand):
         serializer.is_valid(raise_exception=True)
         subscription = serializer.save(number=number)
         for action in ["quote", "confirm", "activate"]:
-            transition(subscription, action)
+            subscription = transition(subscription, action)
         self.stdout.write(self.style.SUCCESS(
             f"Created {number}; expected first invoice 184080 paise. "
             f"Admin: {admin.email}; customer: {customer.email}. Existing passwords are preserved."
