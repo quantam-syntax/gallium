@@ -137,6 +137,14 @@ class PhaseOneAPITests(APITestCase):
                     self.assertEqual(self.client.delete("/api/" + route + "/1").status_code, 403)
             self.assertEqual(self.client.post(f"/api/products/{self.product.pk}/variants", {}, format="json").status_code, 403)
 
+    def test_customer_cannot_read_internal_catalog_and_cost_prices(self):
+        self.login_as(self.customer)
+        for route in ["products", "plans", "taxes", "discounts", "templates"]:
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get("/api/" + route).status_code, 403)
+        self.login_as(self.staff)
+        self.assertEqual(self.client.get("/api/products").status_code, 200)
+
     def test_customer_ownership_on_all_access_paths(self):
         self.login_as(self.staff)
         mine = self.draft()
@@ -305,7 +313,7 @@ class DatabaseTests(TestCase):
             # bulk_create deliberately bypasses manager and save normalization.
             User.objects.bulk_create([User(email="OWNER@EXAMPLE.COM", full_name="Duplicate")])
 
-    def test_due_query_filters_state_date_and_expiry(self):
+    def test_due_query_catches_up_past_cycles_but_skips_after_expiry(self):
         user = User.objects.create_user("owner@example.com", PASSWORD, full_name="Owner")
         plan = Plan.objects.create(name="Monthly", base_price_paise=100, frequency="monthly")
         today = timezone.localdate()
@@ -315,7 +323,8 @@ class DatabaseTests(TestCase):
             ("expired", today, today + timedelta(days=60)),
             ("active", today + timedelta(days=1), today + timedelta(days=60)),
             ("active", today - timedelta(days=1), today),
+            ("active", today, today),
         ]:
             Subscription.objects.create(customer=user, plan=plan, status=status, start_date=today - timedelta(days=1),
                 expiry_date=expiry, next_bill_date=next_date)
-        self.assertEqual(due_subscriptions(today).count(), 1)
+        self.assertEqual(due_subscriptions(today).count(), 2)

@@ -2,6 +2,8 @@
 
 This file is the single source of truth for all four teammates. GSK updates it before any shared interface changes. The target is a working local demo by hour 6; hours 6–8 are for fixes, delivery, and optional polish.
 
+**Repository sync:** `main` was rewritten on 31 October to correct GDM's commit author name. Before pushing from an older clone, follow [README.md's sync instructions](README.md#sync-after-the-author-name-correction); do not force-push the old history.
+
 ## Architecture and data
 
 Django REST Framework + SQLite backend, React/Vite frontend. `gsk/` owns project wiring and billing; `yascn/` owns identity, catalog, and subscriptions; `aliar/` owns invoices, payments, and reporting; `gdm/` owns UI. GSK alone edits root integration files. Use one local billing worker, short database transactions, and database uniqueness constraints. Routes start `/api` with no trailing slash. IDs are integers; dates are ISO `YYYY-MM-DD`; timestamps include a timezone. Money is integer paise (₹560 = 56000); rates are basis points (1800 = 18%).
