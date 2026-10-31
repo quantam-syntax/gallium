@@ -134,3 +134,37 @@ returns a fresh locked model instance; callers should retain its return value.
 The earlier missing-app startup error is resolved by the ALIAR namespace
 directory: shared checks and migrations now pass, but that does not establish
 that any invoice/payment functionality exists.
+
+## Checkpoint 4 — ALIAR compatibility verified; awaiting GSK
+
+**Done:** Synced ALIAR's `dc60886` delivery. Verified its invoice/payment models,
+creation service, reporting, and test bridge against YASCN's real models and
+`yascn.billing.due_candidates`. The combined suite covers login, active
+subscription, pricing/preview, real invoice creation, two partial payments,
+dashboard/ownership checks, settlement, catch-up, and a second no-op billing run.
+No YASCN compatibility code changes were needed. Updated the integration handoff
+to reflect the delivered finance backend and exact remaining wiring steps.
+
+**Next:** Resume after GSK connects `gsk/integration.py` and registers
+`aliar.urls` in shared URLs. Then repeat the production/backend and browser demo
+gate before implementing the deferred YASCN lifecycle/password-reset work.
+
+**Blocked:** Production repository selection still raises `IntegrationPending`,
+and root URLs still omit ALIAR. Combined tests supply the repository selection
+and test URL wiring; they do not prove the production or browser gate. Further
+YASCN feature work is paused at the user's request until GSK's part arrives.
+
+**Model/API changes:** None. ALIAR's `create_for_candidate` owns invoice creation,
+discount consumption, and cursor advancement. GSK must not duplicate those
+writes; its invoice-existence query must include cancelled revisions.
+**Migrations:** No new YASCN migration; `0001_initial` remains current.
+
+**Latest verification:**
+
+- `.venv/bin/python manage.py test aliar.tests yascn.tests gsk.tests
+  --settings=aliar.test_settings --verbosity 1`: **76 tests passed**, system check
+  0 issues, including fresh test-database migrations with both real apps.
+- `.venv/bin/python manage.py check`: passed with shared settings, 0 issues.
+- `.venv/bin/python manage.py makemigrations --check --dry-run`: no changes.
+- Documentation checkpoint: `git diff --check` passed; implementation remains
+  unchanged after the verified `dc60886` sync.

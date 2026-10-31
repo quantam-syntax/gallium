@@ -7,13 +7,16 @@ migrations, tests, demo data creation, and documentation live in `yascn/`.
 
 1. Keep `AUTH_USER_MODEL = "yascn.User"` before the first migration. `yascn` and
    `rest_framework.authtoken` are already in `gsk.settings.INSTALLED_APPS`.
-2. Deliver ALIAR's actual invoice/payment models, migrations, API, and creation
-   service. The current `aliar/` directory contains only `CONTRIBUTING.md`;
-   Django accepts the namespace app and checks pass, but no finance backend exists.
+2. ALIAR's invoice/payment models, migrations, API, and creation service arrived
+   in `dc60886` and pass compatibility tests with YASCN. Register its full-path
+   routes with `path("", include("aliar.urls"))` in root URLs.
 3. YASCN's routes are already registered by GSK via
    `path("api/", include("yascn.urls"))` alongside billing routes.
 4. Use `yascn.billing.due_candidates` for the billing repository read side (see
-   below), then connect ALIAR's transactional invoice creation in `gsk/integration.py`.
+   below), then connect `aliar.services.create_for_candidate` for transactional
+   invoice creation in `gsk/integration.py`. Implement `invoice_exists` using
+   `aliar.models.Invoice`, including cancelled revisions. ALIAR consumes discount
+   usage and advances the cursor; do not duplicate those writes in GSK.
 5. Run migrations, check, and the app tests with the integrated settings. No
    root configuration or another owner's source has been edited by YASCN.
 
@@ -213,6 +216,12 @@ The unblocked core integration handoff is delivered. Tests use the real YASCN
 database models and GSK's preview function; HTTP preview tests inject only a
 read repository and an explicit no-existing-invoice answer. They do **not** prove
 invoice persistence, rerun idempotency, payments, or the full integrated demo.
+ALIAR's new combined tests now cover real invoice persistence, partial payments,
+dashboard totals, customer ownership, catch-up, and a duplicate-free second run.
+The combined command `.venv/bin/python manage.py test aliar.tests yascn.tests
+gsk.tests --settings=aliar.test_settings --verbosity 1` passes **76 tests**.
+Those tests still patch repository selection and use test URL wiring; they do
+not establish that the production wiring or browser demo gate has passed.
 Shared billing endpoints still return 503 until GSK implements the repository.
 The new GDM dashboard is present but still uses local in-memory demo data.
 
