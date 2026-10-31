@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "./api.js";
 
-const staffPrompts = ["What is our MRR?", "Which invoices are overdue?", "How many subscriptions are active?"];
+const staffPrompts = ["What is our MRR?", "Which invoices are overdue?", "What does the Odoo variant cost?", "How many subscriptions are active?"];
 const customerPrompts = ["When is my next bill?", "What do I still owe?", "How can I manage my plan?"];
 
 export default function AssistantChat({ role }) {
@@ -45,11 +45,11 @@ export default function AssistantChat({ role }) {
     {open && <section className="assistant-panel" aria-label="Brightloop assistant">
       <header className="assistant-header">
         <span className="assistant-mark" aria-hidden="true">✦</span>
-        <span><strong>Brightloop assistant</strong><small>{mode === "demo" ? "Data-backed demo mode" : mode === "ai" ? "AI · live workspace data" : "Ask about your billing data"}</small></span>
+        <span><strong>Brightloop assistant</strong><small>{mode === "demo" ? "Data-backed demo mode" : mode === "ai" ? "Gemini · live Brightloop data" : "Ask anything about Brightloop"}</small></span>
         <button type="button" aria-label="Close assistant" onClick={() => setOpen(false)}>×</button>
       </header>
       <div className="assistant-conversation" role="log" aria-live="polite">
-        {messages.length === 0 && <div className="assistant-welcome"><span>✦</span><h2>How can I help?</h2><p>{role === "customer" ? "Ask about your subscriptions, invoices, and next bill." : "Get a quick read on subscriptions, revenue, and overdue invoices."}</p></div>}
+        {messages.length === 0 && <div className="assistant-welcome"><span>✦</span><h2>How can I help?</h2><p>{role === "customer" ? "Ask anything about your Brightloop account, subscriptions, and invoices." : "Ask about any Brightloop product, workflow, subscription, invoice, payment, or report."}</p></div>}
         {messages.map((item, index) => <div className={`assistant-message assistant-message-${item.role}`} key={index}><span>{item.role === "assistant" ? "✦" : "You"}</span><p>{item.content}</p></div>)}
         {pending && <div className="assistant-thinking"><i /><i /><i /><span>Checking Brightloop data…</span></div>}
         {error && <p className="assistant-error" role="alert">{error}</p>}
@@ -61,7 +61,7 @@ export default function AssistantChat({ role }) {
         <input id="assistant-question" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={1000} placeholder="Ask a question…" disabled={pending} />
         <button type="submit" aria-label="Send question" disabled={pending || !draft.trim()}>↑</button>
       </form>
-      <p className="assistant-footnote">Read-only answers · Check invoices before acting</p>
+      <p className="assistant-footnote">Brightloop questions only · Read-only answers</p>
     </section>}
     <button className={`assistant-launcher ${open ? "assistant-launcher-open" : ""}`} type="button" aria-label={open ? "Close Brightloop assistant" : "Open Brightloop assistant"} aria-expanded={open} onClick={() => setOpen((value) => !value)}>
       <span aria-hidden="true">{open ? "×" : "✦"}</span>{!open && <strong>Ask Brightloop</strong>}

@@ -23,7 +23,7 @@ class AssistantTests(TestCase):
         self.client = APIClient()
 
     def test_demo_mode_uses_role_scoped_data(self):
-        with patch.dict("os.environ", {"OPENAI_API_KEY": ""}):
+        with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             self.client.force_authenticate(user=self.admin)
             response = self.client.post("/api/assistant/chat", {"message": "What is our MRR?"}, format="json")
             self.assertEqual(response.status_code, 200)
@@ -38,16 +38,45 @@ class AssistantTests(TestCase):
 
     def test_ai_mode_receives_only_customer_context(self):
         self.client.force_authenticate(user=self.customer)
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}), patch(
-            "gsk.assistant._call_openai", return_value="Your plan is active."
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}), patch(
+            "gsk.gemini_assistant.generate_answer", return_value="Your plan is active."
         ) as call:
             response = self.client.post("/api/assistant/chat", {"message": "When is my next bill?"}, format="json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {"answer": "Your plan is active.", "mode": "ai"})
-        context = call.call_args.args[2]
-        self.assertEqual(context["scope"], "customer")
-        self.assertNotIn("metrics", context)
-        self.assertEqual(len(context["subscriptions"]), 1)
+        self.assertEqual(call.call_args.args[2], self.customer)
+
+    def test_unrelated_demo_question_is_refused(self):
+        self.client.force_authenticate(user=self.admin)
+        with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
+            response = self.client.post("/api/assistant/chat", {"message": "Write a poem about Mars."}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("only help with Brightloop", response.data["answer"])
+
+    def test_customer_tools_never_return_staff_finance_or_private_catalog(self):
+        from gsk.gemini_assistant import get_catalog, run_tool, search_records
+
+        self.assertEqual(run_tool(self.customer, "get_finance_summary", {})["error"], "Staff access required.")
+        self.assertEqual(run_tool(self.customer, "get_product_momentum", {})["error"], "Staff access required.")
+        self.assertEqual(search_records(self.customer, "customers")["items"][0]["email"], self.customer.email)
+        self.assertNotIn("discounts", get_catalog(self.customer))
+
+    def test_gemini_gate_and_allowlisted_tool_roundtrip(self):
+        from gsk.gemini_assistant import REFUSAL, generate_answer
+
+        in_scope = {"candidates": [{"content": {"parts": [{"text": "IN_SCOPE"}]}}]}
+        tool_call = {"candidates": [{"content": {"role": "model", "parts": [
+            {"functionCall": {"name": "get_app_guide", "args": {}, "id": "call-1"}}
+        ]}}]}
+        final = {"candidates": [{"content": {"parts": [{"text": "Use the customer portal."}]}}]}
+        with patch("gsk.gemini_assistant._request", side_effect=[in_scope, tool_call, final]) as request:
+            self.assertEqual(generate_answer("How do I manage my plan?", [], self.customer, "test-key"), "Use the customer portal.")
+        self.assertEqual(request.call_count, 3)
+        second_payload = request.call_args_list[2].args[0]
+        self.assertEqual(second_payload["contents"][-1]["parts"][0]["functionResponse"]["id"], "call-1")
+        with patch("gsk.gemini_assistant._request", return_value={"candidates": [{"content": {"parts": [{"text": "OUT_OF_SCOPE"}]}}]}) as request:
+            self.assertEqual(generate_answer("Write a poem about Mars", [], self.customer, "test-key"), REFUSAL)
+        self.assertEqual(request.call_count, 1)
 
     def test_rejects_oversized_and_forged_history(self):
         self.client.force_authenticate(user=self.admin)

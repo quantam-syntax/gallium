@@ -28,4 +28,4 @@
 - With the seeded monthly plan and one Odoo variant, the expected invoice is ₹1,840.80 including tax. A ₹500 payment leaves ₹1,340.80 outstanding, unless you changed the catalog or applied a discount.
 - If the dashboard is crowded by earlier rehearsal records, use a fresh disposable local database before the final recording. Do not delete production data.
 - The default email backend captures invoice and password-reset mail in `.email-outbox/`. The recording does not need an SMTP account.
-- Stop when the core story is clear. The AI follow-up idea was optional and is not part of this demo.
+- Stop when the core story is clear. The assistant can be shown after the billing flow; it refuses questions unrelated to Brightloop.

@@ -3,6 +3,13 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Local-only credential; .env is ignored by Git and never sent to the browser.
+local_env = BASE_DIR / ".env"
+if local_env.exists() and "GEMINI_API_KEY" not in os.environ:
+    for line in local_env.read_text(encoding="utf-8").splitlines():
+        if line.startswith("GEMINI_API_KEY="):
+            os.environ["GEMINI_API_KEY"] = line.partition("=")[2].strip().strip('"\'')
+            break
 SECRET_KEY = os.environ.get("BRIGHTLOOP_SECRET_KEY", "local-demo-only-change-before-deploy")
 DEBUG = os.environ.get("BRIGHTLOOP_DEBUG", "1") == "1"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]

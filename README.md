@@ -12,16 +12,19 @@ questions about current subscriptions, MRR, monthly revenue, overdue invoices,
 product momentum, and customer billing using read-only database queries. Customers
 only receive their own subscription and invoice data.
 
-For open-ended AI answers, set `OPENAI_API_KEY` in the backend process environment
-before starting Django. `OPENAI_MODEL` optionally overrides the default
-`gpt-6-luna`. The key stays on the server; the browser only calls
-`POST /api/assistant/chat`. The endpoint is authenticated, limited to 30 requests
-per user per hour, and does not perform billing actions. The model request uses
-the [OpenAI Responses API](https://developers.openai.com/api/docs/guides/text)
-with `store: false`. OpenAI API access and billing are separate from a ChatGPT
-subscription. When the key is enabled, the endpoint sends the role-scoped
-billing snapshot and recent chat messages to OpenAI for each answer. Never
-commit an API key.
+For open-ended app questions, set `GEMINI_API_KEY` in the backend environment or
+in a local, Git-ignored `.env` file (`GEMINI_API_KEY=your-key`), then restart
+Django. `GEMINI_MODEL` optionally overrides the default `gemini-3.5-flash-lite`.
+The key stays on the server; the browser only calls `POST /api/assistant/chat`.
+The endpoint is authenticated, limited to 30 requests per user per hour, and
+does not perform billing actions. It first checks whether the question is about
+Brightloop; unrelated questions receive a refusal. For app questions, Gemini
+can call only allowlisted read-only lookups for dashboard totals, catalog,
+subscriptions, invoices, payments, customers, product trends, and app workflows.
+Every lookup enforces the signed-in user's role and caps result size. The
+backend uses Google's [Gemini function-calling API](https://ai.google.dev/gemini-api/docs/generate-content/function-calling.md)
+and sends the role-scoped snapshot and recent chat messages to Gemini for each
+answer. Never commit an API key.
 
 ## Sync after the author-name correction
 
