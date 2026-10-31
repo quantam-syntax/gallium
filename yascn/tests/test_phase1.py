@@ -96,6 +96,25 @@ class PhaseOneAPITests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Token " + response.data["token"])
         self.assertEqual(self.client.get("/api/auth/me").data["id"], user.pk)
 
+    def test_customer_directory_persists_new_account_and_is_staff_only(self):
+        self.login_as(self.admin)
+        response = self.client.post("/api/auth/register", {
+            "email": "newbuyer@example.com", "password": PASSWORD,
+            "full_name": "New Buyer", "role": "customer",
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        created_id = response.data["id"]
+
+        self.login_as(self.staff)
+        directory = self.client.get("/api/customers")
+        self.assertEqual(directory.status_code, 200, directory.data)
+        self.assertIn(created_id, [customer["id"] for customer in directory.data["results"]])
+        self.assertTrue(all(customer["role"] == "customer" for customer in directory.data["results"]))
+        self.assertNotIn("password", directory.data["results"][-1])
+
+        self.login_as(self.customer)
+        self.assertEqual(self.client.get("/api/customers").status_code, 403)
+
     def test_invalid_and_inactive_login(self):
         for password in ["wrong", PASSWORD]:
             if password == PASSWORD:

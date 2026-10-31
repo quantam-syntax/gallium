@@ -1,5 +1,9 @@
 # YASCN progress
 
+## Latest integration handoff
+
+- Added `GET /api/customers` for authenticated admin/staff users. It returns only active customer accounts using the standard paginated user shape; customer role receives 403. A targeted test confirms a newly registered customer remains discoverable for quotations after a fresh request. GSK connected this route to the UI and ran the full suite.
+
 ## Checkpoint 1 — Phase 1 foundation
 
 **Done:** Read every project source and workstream brief. Implemented the custom

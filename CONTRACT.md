@@ -29,7 +29,7 @@ Invoice statuses: `draft`, `confirmed`, `paid`, `cancelled`. `is_overdue` and pa
 
 All lists return `{ "results": [], "count": 0, "next": null, "previous": null }`. Non-field errors return `{ "detail": "..." }`; validation errors identify fields. Every mutation checks role and ownership on the backend.
 
-- YASCN: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/password-reset/request`, `POST /api/auth/password-reset/confirm`, CRUD `/api/products`, `/api/plans`, `/api/taxes`, `/api/discounts`, `/api/templates`, `/api/subscriptions`, and `GET /api/subscriptions/{id}/addons`. Login returns `{ "token": "...", "user": { "id": 1, "email": "...", "role": "admin", "full_name": "..." } }`. Subsequent calls send `Authorization: Token <token>`.
+- YASCN: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/password-reset/request`, `POST /api/auth/password-reset/confirm`, staff-only paginated `GET /api/customers`, CRUD `/api/products`, `/api/plans`, `/api/taxes`, `/api/discounts`, `/api/templates`, `/api/subscriptions`, and `GET /api/subscriptions/{id}/addons`. Login returns `{ "token": "...", "user": { "id": 1, "email": "...", "role": "admin", "full_name": "..." } }`. Subsequent calls send `Authorization: Token <token>`.
 - GSK: `GET /api/billing/preview` and `POST /api/billing/run`, with optional `as_of` defaulting to today. Run is staff/admin only and never bills future periods.
 - ALIAR: list/detail `/api/invoices`, actions `/api/invoices/{id}/confirm`, `/cancel`, `/send`, `/reissue`, `GET/POST /api/invoices/{id}/payments`, and `GET /api/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 

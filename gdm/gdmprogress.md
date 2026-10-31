@@ -2,6 +2,8 @@
 
 ## Latest integration handoff
 
+- Customer accounts now load from the staff-only paginated directory. A live browser check created a temporary customer, refreshed the app, and confirmed the account appeared in both Customers and the quotation selector; the temporary account was removed afterward.
+
 - Added a responsive catalog summary and richer product/variant cards with subtle motion and reduced-motion support.
 - Admin forms now create variants, taxes, fixed/percentage discounts, and multi-line quotation templates through the live API. Product and plan forms expose tax and availability/permission settings. Quotation creation can use a saved template and assign a subscription discount.
 - Browser-verified variant, tax, discount, and template creation; removed the temporary verification records. `npm run build` passes.

@@ -3,7 +3,7 @@ from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import serializers, status, viewsets
+from rest_framework import generics, serializers, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -12,7 +12,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Tax, Product, Plan, Discount, QuotationTemplate, Subscription, SubscriptionLine
+from .models import User, Tax, Product, Plan, Discount, QuotationTemplate, Subscription, SubscriptionLine
 from .permissions import CatalogPermission, SubscriptionPermission
 from .serializers import (UserSerializer, RegisterSerializer, TaxSerializer, ProductSerializer,
                           VariantSerializer, PlanSerializer, DiscountSerializer,
@@ -63,6 +63,19 @@ class MeView(APIView):
 
 class Pagination(PageNumberPagination):
     page_size = 25
+
+
+class CustomerListView(generics.ListAPIView):
+    """Persistent customer choices for staff quotation and account workflows."""
+
+    serializer_class = UserSerializer
+    pagination_class = Pagination
+    queryset = User.objects.filter(role=User.Role.CUSTOMER, is_active=True).order_by("pk")
+
+    def get_queryset(self):
+        if self.request.user.role not in (User.Role.ADMIN, User.Role.STAFF):
+            raise PermissionDenied("Staff access required.")
+        return super().get_queryset()
 
 
 class CatalogViewSet(viewsets.ModelViewSet):

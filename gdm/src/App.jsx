@@ -102,10 +102,17 @@ function normalizeInvoice(invoice, subscriptions) {
   };
 }
 
-function catalogCustomers(invoices, subscriptions, currentUser) {
+function catalogCustomers(invoices, subscriptions, currentUser, directory = []) {
   const customersById = new Map();
+  for (const customer of directory) {
+    customersById.set(customer.id, {
+      id: customer.id,
+      name: customer.company_name || customer.full_name || customer.email,
+      email: customer.email,
+    });
+  }
   for (const invoice of invoices) {
-    if (invoice.customer_id) {
+    if (invoice.customer_id && !customersById.has(invoice.customer_id)) {
       customersById.set(invoice.customer_id, {
         id: invoice.customer_id,
         name: invoice.customer_name,
@@ -727,7 +734,7 @@ function Catalog({ products, plans, taxes, discounts, templates, subscriptions, 
 function Customers({ customers, invoices, canAdd, onAdd, onCustomer }) {
   return (
     <>
-      <PageHeader eyebrow="PEOPLE & RELATIONSHIPS" title="Customers" subtitle="Customers with billing activity and accounts added in this session." action={canAdd && <Button kind="primary" icon="plus" onClick={onAdd}>Add customer</Button>} />
+      <PageHeader eyebrow="PEOPLE & RELATIONSHIPS" title="Customers" subtitle="Every active customer account, ready for a quotation." action={canAdd && <Button kind="primary" icon="plus" onClick={onAdd}>Add customer</Button>} />
       <section className="content-card list-card">
         <div className="list-toolbar"><div><h2>Customers</h2><span>{customers.length} customer accounts available</span></div></div>
         <div className="table-scroll"><table className="data-table full-table">
@@ -911,6 +918,7 @@ function App() {
   const [taxes, setTaxes] = useState([]);
   const [discounts, setDiscounts] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [customerDirectory, setCustomerDirectory] = useState([]);
   const [customerAccounts, setCustomerAccounts] = useState([]);
   const [runResult, setRunResult] = useState(null);
   const [notice, setNotice] = useState("");
@@ -930,11 +938,11 @@ function App() {
   const customers = useMemo(
     () => user
       ? [...new Map([
-        ...catalogCustomers(invoices, subscriptions, user),
+        ...catalogCustomers(invoices, subscriptions, user, customerDirectory),
         ...customerAccounts,
       ].map((customer) => [customer.id, customer])).values()]
       : [],
-    [customerAccounts, invoices, subscriptions, user],
+    [customerAccounts, customerDirectory, invoices, subscriptions, user],
   );
   const filteredInvoices = useMemo(
     () => invoices.filter((invoice) =>
@@ -962,6 +970,7 @@ function App() {
         apiList("/api/taxes"),
         apiList("/api/discounts"),
         apiList("/api/templates"),
+        apiList("/api/customers"),
       ]),
     ];
     const results = await Promise.allSettled(requests);
@@ -977,6 +986,7 @@ function App() {
     const taxesResult = customerMode ? null : results[6];
     const discountsResult = customerMode ? null : results[7];
     const templatesResult = customerMode ? null : results[8];
+    const customersResult = customerMode ? null : results[9];
     const productsData = productsResult?.status === "fulfilled" ? productsResult.value : [];
     const plansData = plansResult?.status === "fulfilled" ? plansResult.value : [];
     const normalizedSubs = subscriptionData.map((item) => normalizeSubscription(item, plansData, productsData, invoiceData, user));
@@ -988,6 +998,7 @@ function App() {
       setTaxes([]);
       setDiscounts([]);
       setTemplates([]);
+      setCustomerDirectory([]);
       setDashboard(null);
       setPreview(null);
     } else {
@@ -996,11 +1007,12 @@ function App() {
       setTaxes(taxesResult?.status === "fulfilled" ? taxesResult.value : []);
       setDiscounts(discountsResult?.status === "fulfilled" ? discountsResult.value : []);
       setTemplates(templatesResult?.status === "fulfilled" ? templatesResult.value : []);
+      setCustomerDirectory(customersResult?.status === "fulfilled" ? customersResult.value : []);
       setDashboard(dashboardResult?.status === "fulfilled" ? dashboardResult.value : null);
       setPreview(previewResult?.status === "fulfilled" ? previewResult.value : null);
     }
 
-    const labels = ["subscriptions", "invoices", ...(customerMode ? [] : ["products", "plans", "dashboard", "billing preview", "taxes", "discounts", "templates"])];
+    const labels = ["subscriptions", "invoices", ...(customerMode ? [] : ["products", "plans", "dashboard", "billing preview", "taxes", "discounts", "templates", "customers"])];
     const failures = {};
     results.forEach((result, index) => {
       if (result.status === "rejected") failures[labels[index]] = result.reason.message;
@@ -1343,6 +1355,7 @@ function App() {
     setTaxes([]);
     setDiscounts([]);
     setTemplates([]);
+    setCustomerDirectory([]);
     setCustomerAccounts([]);
     setPreview(null);
     setDashboard(null);

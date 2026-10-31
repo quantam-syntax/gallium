@@ -4,12 +4,12 @@
 
 - The catalog now has a more expressive responsive view, subtle motion with reduced-motion support, and working admin forms for variants, taxes, discounts, and quotation templates. Product/plan forms include tax and plan controls. Quotation creation can select a template and subscription discount. Keep your changes inside `gdm/` and update `gdm/gdmprogress.md`.
 - Password-reset request/confirm, customer add-on and quantity editing, and staff invoice send/cancel/reissue controls are now present. Next: rehearse these flows end to end against the integrated backend, confirm role boundaries and error states, then capture the demo with GSK.
-- Before another commit in Gauthami's clone, set `git config user.name "Gauthami"` and `git config user.email "vgauthami007@gmail.com"`; commit `ab89743` still displays **AKASH S KISHOR** as its author. Coordinate any shared-history correction with GSK.
+- Customer accounts now load from the paginated staff-only `/api/customers` directory, so a fresh account remains available for a quotation after refresh. Before another commit in Gauthami's clone, set `git config user.name "Gauthami"` and `git config user.email "vgauthami007@gmail.com"`.
 - Preserve the current catalog and dashboard visual quality while extending these flows. Run `npm run build` and the complete seeded story after your changes. Let GSK integrate and push root changes.
 
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for routes, statuses, money units, and response fields; tell GSK before changing an interface.
 
-**Git sync:** The earlier scaffold commit was corrected to **Gauthami**, but the newer dashboard commit `97f4fa9` again records **AKASH S KISHOR** with Gauthami's email. In your own clone, run `git config user.name "Gauthami"` and `git config user.email "vgauthami007@gmail.com"` before your next commit, then verify with `git log -1 --format='%an <%ae>'`. Follow the [README sync steps](README.md#sync-after-the-author-name-correction) if your clone still has the old history. Do not force-push a history rewrite over teammates' work.
+**Git sync:** GSK corrected the GDM author attribution in shared history. In your own clone, run `git config user.name "Gauthami"` and `git config user.email "vgauthami007@gmail.com"` before your next commit, then verify with `git log -1 --format='%an <%ae>'`. Follow the [README sync steps](README.md#sync-after-the-author-name-correction) if your clone still has the old history. Do not force-push old history over teammates' work.
 
 ## What we are building
 

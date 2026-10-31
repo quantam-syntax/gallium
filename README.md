@@ -4,7 +4,7 @@ Subscription billing demo built by four owners. Read [CONTRACT.md](CONTRACT.md) 
 
 ## Sync after the author-name correction
 
-On 31 October, `main` history was rewritten solely to correct GDM's frontend commit author and committer name from **AKASH S KISHOR** to **Gauthami**. The GitHub account and email stayed `vgauthami007-wq` / `vgauthami007@gmail.com`; file contents did not change. The old commit `e2574ba` is now `f58b18f`. A normal `git pull` from a clone of the old history may report divergent branches.
+On 31 October, `main` history was rewritten to correct all GDM commits recorded with **AKASH S KISHOR** and `vgauthami007@gmail.com` to the author and committer name **Gauthami**. The account and email remain the same. Later commits have new hashes because their parent hashes changed; the application changes were preserved. A normal `git pull` from an older clone may report divergent branches.
 
 First save or commit any uncommitted work. In a clone still on the old `main`, preserve the old branch and create a fresh local `main` from the remote:
 
@@ -14,9 +14,7 @@ git branch -m main main-before-gauthami-fix
 git switch -c main --track origin/main
 ```
 
-The old branch is retained locally, including any unpushed commits. Ask GSK to help replay those commits onto the new `main` before pushing; do not force-push the old history. New clones need no special action. Gauthami should run `git config user.name "Gauthami"` in her own clone so future commits display the correct name.
-
-The later dashboard commit `97f4fa9` was also recorded as **AKASH S KISHOR** with Gauthami's email. Set both `user.name` and `user.email` locally and verify them before making another commit. This published commit remains in shared history; correcting it would require another coordinated rewrite.
+The old branch is retained locally, including any unpushed commits. Ask GSK to help replay those commits onto the new `main` before pushing; do not force-push the old history. New clones need no special action. Gauthami should run `git config user.name "Gauthami"` and `git config user.email "vgauthami007@gmail.com"` in her own clone before another commit.
 
 ## Run the integrated backend
 
@@ -79,6 +77,8 @@ The React app now includes password recovery, customer add-on/quantity editing,
 and staff invoice send/cancel/reissue controls. Their backend routes and payloads
 are documented in `yascn/LIFECYCLE.md` and `CONTRACT.md`. The final full-browser
 rehearsal of these newer flows and the demo recording remain outstanding.
+Staff can retrieve every active customer account through `GET /api/customers`,
+so newly registered customers remain available for quotations after refresh.
 
 The local performance check used a temporary database with 1,003 subscriptions
 and 1,004 invoices. Headless Chromium reached overview, subscriptions, and
