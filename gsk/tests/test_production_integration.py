@@ -48,6 +48,7 @@ class ProductionBillingIntegrationTests(TestCase):
         first = client.post("/api/billing/run", {}, format="json")
         self.assertEqual(first.status_code, 200, first.data)
         self.assertEqual(first.data["created_count"], 1)
+        self.assertEqual(first.data["created_total_paise"], preview.data["expected_total_paise"])
         self.assertEqual(first.data["error_count"], 0)
         invoice_id = first.data["invoices"][0]["id"]
         detail = client.get(f"/api/invoices/{invoice_id}")
@@ -75,6 +76,7 @@ class ProductionBillingIntegrationTests(TestCase):
         second = client.post("/api/billing/run", {}, format="json")
         self.assertEqual(second.status_code, 200, second.data)
         self.assertEqual(second.data["created_count"], 0)
+        self.assertEqual(second.data["created_total_paise"], 0)
 
         customer = User.objects.get(email="customer@brightloop.example")
         client.force_authenticate(user=customer)

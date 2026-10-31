@@ -13,7 +13,7 @@
 | Time | Action | What to say |
 | --- | --- | --- |
 | 0:00–0:25 | Sign in as admin; open **Products & plans**. Show the Odoo variant surcharge, plan, tax, discount, and quotation template. | “Brightloop configures its recurring offer once, including variants and billing rules.” |
-| 0:25–1:05 | Open **Quotations** → **Create quotation**. Choose the seeded customer and template, keep the start date today, save. Open **Subscriptions** and use **Actions** to confirm, then activate the new quotation. | “The offer becomes a numbered subscription with a clear lifecycle.” |
+| 0:25–1:05 | Open **Quotations** → **Create quotation**. Choose the seeded customer and template, keep the start date today, save. In the new quotation row, click **Confirm**, then **Activate**. | “The offer becomes a numbered active subscription; only active subscriptions are billable.” |
 | 1:05–1:45 | Open **Overview**. Point out the due subscription and expected amount in the Billing Control Tower. Click **Run billing** once, then again to show zero new invoices. | “Preview exposes what will bill; the second run proves the period cannot be billed twice.” |
 | 1:45–2:35 | Open **Invoices**. Confirm the new draft invoice, record a ₹500 partial payment with a method, payment date, and a short reference note. Show the remaining balance and use **View / print**. | “The invoice is built from the subscription; payments and outstanding amounts update from saved records.” |
 | 2:35–3:15 | Return to **Overview** to show collected and outstanding totals. Sign out and sign in as the seeded customer. Show their subscription, included product, and invoice balance. | “Finance and the customer see consistent numbers, with customer access restricted to their own data.” |
@@ -22,6 +22,7 @@
 ## Rehearsal notes
 
 - A billed subscription is **not due again today**. For each rehearsal or retake, create and activate a fresh quotation instead of changing an invoice or rewinding its billing cursor.
+- The **Expected Total** is the amount **remaining to bill**, so it falls to ₹0 after a successful run. **Invoiced this run** and the invoice/dashboard totals show the amount created. Gross monthly recurring revenue is based on active subscriptions and does not change merely because an invoice was generated.
 - With the seeded monthly plan and one Odoo variant, the expected invoice is ₹1,840.80 including tax. A ₹500 payment leaves ₹1,340.80 outstanding, unless you changed the catalog or applied a discount.
 - If the dashboard is crowded by earlier rehearsal records, use a fresh disposable local database before the final recording. Do not delete production data.
 - The default email backend captures invoice and password-reset mail in `.email-outbox/`. The recording does not need an SMTP account.

@@ -464,6 +464,7 @@ function Overview({ preview: loadedPreview, dashboard, invoices, subscriptions, 
   const activeSubscriptions = subscriptions.filter((subscription) => subscription.status === "active");
   const activeCount = dashboard?.active_count ?? activeSubscriptions.length;
   const grossMrr = dashboard?.gross_mrr_paise ?? 0;
+  const awaitingActivation = subscriptions.filter((subscription) => subscription.status === "confirmed").length;
 
   return (
     <div className="overview-page">
@@ -486,7 +487,7 @@ function Overview({ preview: loadedPreview, dashboard, invoices, subscriptions, 
           <div className="hero-insight" aria-label="Current billing cycle summary">
             <div className="hero-insight-top"><span className="hero-live-dot" /> READY FOR THIS CYCLE <Icon name="spark" size={18} /></div>
             <strong>{money(preview.expected_total_paise)}</strong>
-            <p>Expected from {preview.due_count} subscription{preview.due_count === 1 ? "" : "s"} due</p>
+            <p>Remaining to bill from {preview.due_count} subscription{preview.due_count === 1 ? "" : "s"} due</p>
             <div className="hero-insight-divider" />
             <div className="hero-insight-bottom"><span>Billing status</span><b>{preview.exceptions.length ? `${preview.exceptions.length} need attention` : "All checks clear"}</b></div>
           </div>
@@ -515,13 +516,13 @@ function Overview({ preview: loadedPreview, dashboard, invoices, subscriptions, 
           <Button kind="dark" icon="arrow" onClick={() => document.getElementById("preview-table")?.scrollIntoView({ behavior: "smooth", block: "center" })}>Review preview</Button>
         </div>
         <div className="table-section" id="preview-table">
-          <div className="table-heading"><div><h3>Invoice preview</h3><span>{preview.due_count ? "Review the calculated totals before running billing." : "No subscriptions are due for this run."}</span></div><button className="subtle-link" onClick={() => onNavigate("subscriptions")}>View subscriptions <Icon name="chevron" size={14} /></button></div>
+          <div className="table-heading"><div><h3>Invoice preview</h3><span>{preview.due_count ? "Review the calculated totals before running billing." : awaitingActivation ? `${awaitingActivation} confirmed subscription${awaitingActivation === 1 ? " is" : "s are"} waiting for activation before billing.` : "No subscriptions are due for this run."}</span></div><button className="subtle-link" onClick={() => onNavigate(awaitingActivation ? "quotations" : "subscriptions")}>{awaitingActivation ? "Activate quotations" : "View subscriptions"} <Icon name="chevron" size={14} /></button></div>
           <PreviewTable items={preview.items} />
           {preview.exceptions.length > 0 && <div className="exception-row"><Icon name="alert" size={16} /> {preview.exceptions.length} subscription(s) need attention before billing.</div>}
         </div>
         {runResult && <div className="run-result">
           <div className="run-check"><Icon name="check" size={17} /></div>
-          <div className="run-copy"><strong>{runResult.created_count ? "Billing run complete" : "Run complete — nothing new to bill"}</strong><span>{runResult.created_count} invoice{runResult.created_count === 1 ? "" : "s"} created · {runResult.skipped_count} skipped · {runResult.error_count} errors</span></div>
+          <div className="run-copy"><strong>{runResult.created_count ? `${money(runResult.created_total_paise)} invoiced this run` : "Run complete — nothing new to bill"}</strong><span>{runResult.created_count} invoice{runResult.created_count === 1 ? "" : "s"} created · {runResult.skipped_count} skipped · {runResult.error_count} errors{!runResult.created_count && awaitingActivation ? ` · Activate ${awaitingActivation} confirmed subscription${awaitingActivation === 1 ? "" : "s"} to bill` : ""}</span></div>
           {runResult.invoices.length > 0 && <button className="subtle-link" onClick={() => onNavigate("invoices")}>View invoices <Icon name="chevron" size={14} /></button>}
         </div>}
         <div className="tower-footer"><span><span className="lock-symbol">✓</span> Preview and billing use the same pricing rules.</span><button onClick={() => onNavigate("invoices")}>Billing history <Icon name="chevron" size={13} /></button></div>
@@ -631,15 +632,15 @@ function Subscriptions({ subscriptions, onAction, onNavigate }) {
   );
 }
 
-function Quotations({ subscriptions, customers, plans, products, onCreate }) {
+function Quotations({ subscriptions, customers, plans, products, onCreate, onAction, busy }) {
   const quotations = subscriptions.filter((subscription) =>
-    ["draft", "quotation"].includes(subscription.status),
+    ["draft", "quotation", "confirmed"].includes(subscription.status),
   );
   return (
     <>
       <PageHeader eyebrow="SALES WORKFLOW" title="Quotations" subtitle="Turn a customer’s needs into a subscription, one step at a time." action={<Button kind="primary" icon="plus" onClick={onCreate}>Create quotation</Button>} />
       <section className="content-card list-card">
-        <div className="list-toolbar"><div><h2>Quotes & drafts</h2><span>{quotations.length} records</span></div><span className="select-chip">Subscription status <span>⌄</span></span></div>
+        <div className="list-toolbar"><div><h2>Quotes awaiting activation</h2><span>{quotations.length} records</span></div><span className="select-chip">Subscription status <span>⌄</span></span></div>
         {quotations.length ? <div className="table-scroll"><table className="data-table full-table">
           <thead><tr><th>QUOTE</th><th>CUSTOMER</th><th>PLAN</th><th>CREATED</th><th>VALID UNTIL</th><th>STATUS</th><th /></tr></thead>
           <tbody>{quotations.map((subscription) => {
@@ -649,7 +650,7 @@ function Quotations({ subscriptions, customers, plans, products, onCreate }) {
               <td><strong className="table-primary">{subscription.number}</strong><small className="table-secondary">Subscription quote</small></td>
               <td>{customer?.name || subscription.customer}</td><td>{plan?.name || subscription.plan}</td>
               <td>{shortDate(subscription.start_date)}</td><td>{subscription.quote_expires_at ? shortDate(subscription.quote_expires_at.slice(0, 10)) : "—"}</td>
-              <td><Status>{subscription.status}</Status></td><td>{products.length === 0 ? null : <span className="table-secondary">{subscription.lines?.length || 0} line items</span>}</td>
+              <td><Status>{subscription.status}</Status></td><td>{subscription.permitted_actions.includes("quote") && <button className="table-action-link" disabled={busy} onClick={() => onAction(subscription.id, "quote")}>Send quote</button>}{subscription.permitted_actions.includes("confirm") && <button className="table-action-link" disabled={busy} onClick={() => onAction(subscription.id, "confirm")}>Confirm</button>}{subscription.permitted_actions.includes("activate") && <button className="table-action-link" disabled={busy} onClick={() => onAction(subscription.id, "activate")}>Activate</button>}{products.length === 0 ? null : <span className="table-secondary">{subscription.lines?.length || 0} line items</span>}</td>
             </tr>;
           })}</tbody>
         </table></div> : <div className="table-empty"><span className="empty-check"><Icon name="file" /></span><div><strong>No open quotations</strong><small>Create a quotation to start a customer subscription.</small></div></div>}
@@ -1145,7 +1146,7 @@ function App() {
   async function runBilling() {
     const result = await perform(
       () => apiRequest("/api/billing/run", { method: "POST", body: {} }),
-      (response) => `${response.created_count} invoice${response.created_count === 1 ? "" : "s"} created · ${response.skipped_count} skipped · ${response.error_count} errors.`,
+      (response) => `${response.created_count} invoice${response.created_count === 1 ? "" : "s"} created · ${money(response.created_total_paise)} invoiced · ${response.skipped_count} skipped · ${response.error_count} errors.`,
     );
     if (result) setRunResult(result);
   }
@@ -1224,12 +1225,12 @@ function App() {
     if (result) setAddonSubscription(null);
   }
 
-  async function transitionSubscription(id, action) {
+  async function transitionSubscription(id, action, stayOnPage = false) {
     const result = await perform(
       () => apiRequest(`/api/subscriptions/${id}/transition`, { method: "POST", body: { action } }),
       (subscription) => `${subscription.number} is now ${subscription.status}.`,
     );
-    if (result) setPage("subscriptions");
+    if (result && !stayOnPage) setPage("subscriptions");
   }
 
   async function createCatalogRecord(type, values) {
@@ -1421,7 +1422,7 @@ function App() {
           {customerMode ? <CustomerPortal user={user} subscriptions={subscriptions} invoices={invoices} onAction={transitionSubscription} onInvoice={setPrintInvoice} onManageLines={openAddonEditor} busy={actionBusy || addonOptionsLoading} /> :
             page === "overview" ? <Overview preview={preview} dashboard={dashboard} invoices={invoices} subscriptions={subscriptions} runResult={runResult} onRun={runBilling} onPayment={openPayment} onNavigate={navigate} loading={dataLoading} /> :
             page === "subscriptions" ? <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} /> :
-            page === "quotations" ? <Quotations subscriptions={subscriptions} customers={customers} plans={plans} products={products} onCreate={() => setEditor("quotation")} /> :
+            page === "quotations" ? <Quotations subscriptions={subscriptions} customers={customers} plans={plans} products={products} onCreate={() => setEditor("quotation")} onAction={(id, action) => transitionSubscription(id, action, true)} busy={actionBusy} /> :
             page === "invoices" ? <Invoices invoices={filteredInvoices} canManage={user.role === "admin" || user.role === "staff"} busy={actionBusy} onConfirm={confirmInvoice} onPayment={openPayment} onAction={performInvoiceAction} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
             page === "catalog" ? <Catalog products={products} plans={plans} taxes={taxes} discounts={discounts} templates={templates} subscriptions={subscriptions} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} onCreateExtra={(type) => { setOperationError(""); setEditor(type); }} /> :
             user.role === "admin" ? <Customers customers={customers} invoices={invoices} canAdd onAdd={() => setEditor("customer")} onCustomer={() => showNotice("Choose a customer record to review their billing data.")} /> :

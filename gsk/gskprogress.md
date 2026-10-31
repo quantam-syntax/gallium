@@ -2,6 +2,7 @@
 
 ## Latest integration handoff
 
+- Investigated the zero-amount billing report: the local fourth subscription was `confirmed`, while the three active subscriptions were already billed through 30 November. Made Confirm/Activate visible in Quotations and added `created_total_paise` to billing run output. Browser verification on a copied DB: activate → ₹1,840.80 preview → one ₹1,840.80 invoice → ₹0 remaining to bill; the original DB was untouched.
 - Completed the staff payment form's date and note inputs and wrote `DEMO.md` with the exact recording path. A browser check against an isolated demo database saved ₹500 by UPI with a prior payment date and reference note; the API returned the same values. The final recording and submission remain with the team lead.
 - Added `python manage.py run_billing [--as-of YYYY-MM-DD]`, calling the same idempotent billing service as the Control Tower. Schedule billing before `maintain_subscriptions` so final periods can be invoiced.
 - Built and browser-verified the catalog admin forms with GDM's frontend. Updated each owner's root brief with current remaining work.

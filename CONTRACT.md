@@ -39,7 +39,7 @@ Subscription responses also include safe display fields `plan_name`, `plan_frequ
 
 Preview returns `{ "as_of": "2026-10-31", "due_count": 1, "expected_total_paise": 184080, "items": [{ "subscription_id": 12, "number": "SUB-0012", "customer_name": "Example Shop", "period_start": "2026-10-31", "period_end": "2026-11-30", "subtotal_paise": 156000, "discount_paise": 0, "tax_paise": 28080, "total_paise": 184080, "issues": [] }], "exceptions": [] }`.
 
-Run returns `{ "created_count": 1, "skipped_count": 0, "error_count": 0, "invoices": [{ "id": 25, "number": "INV-0025", "subscription_id": 12, "total_paise": 184080 }], "errors": [] }`. Payment POST body is `{ "method": "bank", "amount_paise": 50000, "paid_on": "2026-10-31", "note": "..." }`; response includes the payment and updated `paid_paise`/`balance_paise`.
+Run returns `{ "created_count": 1, "created_total_paise": 184080, "skipped_count": 0, "error_count": 0, "invoices": [{ "id": 25, "number": "INV-0025", "subscription_id": 12, "total_paise": 184080 }], "errors": [] }`. Payment POST body is `{ "method": "bank", "amount_paise": 50000, "paid_on": "2026-10-31", "note": "..." }`; response includes the payment and updated `paid_paise`/`balance_paise`.
 
 Password reset request accepts `{ "email": "customer@example.com" }` and returns the same 200 response regardless of account existence. The email links to `/reset-password?uid=...&token=...`; confirmation accepts `{ "uid": "...", "token": "...", "password": "NewPassword!123" }`. Success revokes existing auth tokens and requires login again. Invalid/expired links return 400. IP throttles are 5 requests/hour and 10 confirmations/hour. Local email is captured under `.email-outbox/`; SMTP settings are documented in `yascn/LIFECYCLE.md`.
 

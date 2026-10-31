@@ -85,7 +85,9 @@ class BillingFlowTests(TestCase):
         self.assertEqual(before["due_count"], 1)
         self.assertEqual(first["created_count"], 1)
         self.assertEqual(first["invoices"][0]["total_paise"], before["expected_total_paise"])
+        self.assertEqual(first["created_total_paise"], before["expected_total_paise"])
         self.assertEqual(second["created_count"], 0)
+        self.assertEqual(second["created_total_paise"], 0)
         self.assertEqual(len(repo.invoices), 1)
 
     def test_limited_discount_is_used_once_across_catch_up_periods(self):

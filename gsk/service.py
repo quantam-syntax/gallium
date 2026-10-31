@@ -141,6 +141,7 @@ def run(repo: BillingRepository, as_of: date) -> dict:
             errors.append({"subscription_id": candidate.id, "period_start": period.start.isoformat(), "reason": str(exc)})
     return {
         "created_count": len(invoices),
+        "created_total_paise": sum(invoice["total_paise"] for invoice in invoices),
         "skipped_count": skipped,
         "error_count": len(errors),
         "invoices": invoices,

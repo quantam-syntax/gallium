@@ -75,6 +75,11 @@ periods before maintenance finalizes expired or auto-close contracts. Both
 commands accept `--as-of YYYY-MM-DD` for a past date. The Vite server proxies
 `/api` to Django on `127.0.0.1:8000`.
 
+If **Run billing** creates zero invoices, check Quotations for a confirmed
+subscription and click **Activate**. The Control Tower's Expected Total is the
+amount remaining to bill: it becomes ₹0 after invoicing. The run result shows
+the amount just invoiced, and the finance cards show the new outstanding balance.
+
 The React app now includes password recovery, customer add-on/quantity editing,
 and staff invoice send/cancel/reissue controls. Their backend routes and payloads
 are documented in `yascn/LIFECYCLE.md` and `CONTRACT.md`. The reset-link,
