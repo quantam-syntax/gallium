@@ -181,6 +181,7 @@ class Subscription(models.Model):
     payment_terms_days = models.PositiveIntegerField(default=14)
     next_bill_date = models.DateField()
     subscription_discount = models.ForeignKey(Discount, null=True, blank=True, on_delete=models.PROTECT)
+    activated_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         indexes = [models.Index(fields=["status", "next_bill_date"], name="yascn_due_idx")]
@@ -191,13 +192,26 @@ class Subscription(models.Model):
 
     @property
     def permitted_actions(self):
-        # Phase 1 exposes only the core staff quotation-to-active path.
         now = timezone.now()
-        if self.quote_expires_at and now >= self.quote_expires_at and self.status in ("draft", "quotation", "confirmed"):
+        if self.status == "closed":
             return []
-        if self.expiry_date <= timezone.localdate():
-            return []
-        return {"draft": ["quote"], "quotation": ["confirm"], "confirmed": ["activate"]}.get(self.status, [])
+        if self.status in ("draft", "quotation", "confirmed"):
+            if self.expiry_date <= timezone.localdate() or (self.quote_expires_at and now >= self.quote_expires_at):
+                return ["close"]
+            return {"draft": ["quote", "close"], "quotation": ["confirm", "close"],
+                    "confirmed": ["activate", "close"]}[self.status]
+        actions = []
+        expired = self.expiry_date <= timezone.localdate()
+        if self.status == "active" and not expired and self.plan.allow_pause:
+            actions.append("pause")
+        if self.status == "paused" and not expired:
+            actions.append("resume")
+        was_active = self.activated_at is not None or self.status in ("active", "paused")
+        if was_active and self.plan.allow_renew and not (expired and self.plan.auto_close):
+            actions.append("renew")
+        if self.plan.allow_cancel and was_active:
+            actions.append("close")
+        return actions
 
 
 class SubscriptionLine(models.Model):

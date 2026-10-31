@@ -185,7 +185,7 @@ class BillingHandoffTests(TestCase):
 
     def test_draft_with_expired_template_validity_cannot_be_quoted(self):
         sub = self.subscription(status="draft", quote_expires_at=timezone.now() - timedelta(seconds=1))
-        self.assertEqual(sub.permitted_actions, [])
+        self.assertEqual(sub.permitted_actions, ["close"])
         with self.assertRaises(ValidationError):
             transition(sub, "quote")
 

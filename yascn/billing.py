@@ -23,13 +23,16 @@ def _tax_rate(tax):
     return tax.rate_bps if tax is not None and tax.active else 0
 
 
-def due_candidates(as_of: date) -> list[BillingCandidate]:
+def due_candidates(as_of: date, *, subscription_ids=None) -> list[BillingCandidate]:
     """Return billing inputs with bounded queries, preserving historical prices.
 
     Discount date, amount, quantity, and usage checks remain GSK's responsibility
     for each billing period, including historical periods before current expiry.
     """
-    subscriptions = list(due_subscriptions(as_of))
+    queryset = due_subscriptions(as_of)
+    if subscription_ids is not None:
+        queryset = queryset.filter(pk__in=subscription_ids)
+    subscriptions = list(queryset)
     product_ids = {line.product_id for sub in subscriptions for line in sub.lines.all() if line.active}
     rules_by_product = {}
     if product_ids:

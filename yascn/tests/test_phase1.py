@@ -67,7 +67,7 @@ class PhaseOneAPITests(APITestCase):
         subscription = self.post_ok("subscriptions", {"customer": self.customer.pk, "template_id": template["id"],
             "start_date": str(today), "expiry_date": str(today + timedelta(days=365))})
         self.assertEqual(subscription["status"], "draft")
-        self.assertEqual(subscription["permitted_actions"], ["quote"])
+        self.assertEqual(subscription["permitted_actions"], ["quote", "close"])
         self.assertTrue(subscription["number"].startswith("SUB-"))
         for action, state in [("quote", "quotation"), ("confirm", "confirmed"), ("activate", "active")]:
             self.assertEqual(self.advance(subscription["id"], action)["status"], state)
@@ -159,9 +159,11 @@ class PhaseOneAPITests(APITestCase):
         self.assertEqual(own.data["permitted_actions"], [])
         for subscription in [mine, other]:
             url = f'/api/subscriptions/{subscription["id"]}'
-            self.assertEqual(self.client.patch(url, {"customer": self.customer.pk}, format="json").status_code, 403)
+            self.assertEqual(self.client.patch(url, {"customer": self.customer.pk}, format="json").status_code,
+                             403 if subscription == mine else 404)
             self.assertEqual(self.client.delete(url).status_code, 403)
-            self.assertEqual(self.client.post(url + "/transition", {"action": "quote"}, format="json").status_code, 403)
+            self.assertEqual(self.client.post(url + "/transition", {"action": "quote"}, format="json").status_code,
+                             403 if subscription == mine else 404)
         self.assertEqual(self.client.post("/api/subscriptions", {}, format="json").status_code, 403)
 
     def test_unauthenticated_access_rejected(self):

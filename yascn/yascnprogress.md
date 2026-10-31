@@ -168,3 +168,64 @@ writes; its invoice-existence query must include cancelled revisions.
 - `.venv/bin/python manage.py makemigrations --check --dry-run`: no changes.
 - Documentation checkpoint: `git diff --check` passed; implementation remains
   unchanged after the verified `dc60886` sync.
+
+## Checkpoint 5 — Deferred lifecycle and password reset delivered
+
+**Done:** Synced GSK's `554e697` production repository/routes and received the
+user's authorization to proceed after the backend gate. Implemented password
+reset request/confirm, plan-controlled pause/resume/renew/close, customer-safe
+add-on choices, transactional next-cycle line replacement, and expiry/auto-close
+maintenance. Changes remain inside `yascn/`.
+
+Password reset uses Django's expiring password-bound tokens, identical public
+responses for absent/inactive/undeliverable accounts, IP throttles, configured
+SMTP or captured email, atomic password writes, and revocation of existing DRF
+tokens. Weak passwords, malformed/expired/reused links, and disabled users are
+rejected. Tests do not send real SMTP messages.
+
+Lifecycle operations lock the subscription and use the real GSK/ALIAR production
+bridge to settle old periods before pause, close, renew, or line replacement.
+Failed catch-up rolls back invoices, discount usage, cursor, and requested edits.
+Paused periods are skipped on resume; resumed exact boundaries remain billable.
+Lapsed renewal starts a new anchor without billing the gap; a previously billed
+partial final period continues at its old expiry, preserving a valid schedule.
+Existing/negotiated prices survive customer quantity changes, new add-ons use
+current sale price plus surcharge once, and customer prices/taxes are rejected.
+
+**Next:** Gauthami connects reset and lifecycle UI to the documented payloads,
+clears saved auth after password reset, uses backend `permitted_actions`, and
+refreshes subscriptions/invoices/preview/dashboard after mutations. GSK adds
+these route/payload details to the shared contract and runs
+`manage.py maintain_subscriptions` in the single-worker billing/demo sequence
+before expiry-sensitive dashboard reporting. Perform the final browser demo
+through authenticated APIs after UI integration.
+
+**Blocked:** No YASCN backend implementation blocker remains. The browser demo
+and reset screen still require GDM's API/UI work. SMTP delivery requires the
+operator's configured host/credentials; local capture works without them.
+
+**Model/API changes:** Added internal `Subscription.activated_at` to distinguish
+expired quotations from expired previously active contracts. All existing
+response fields/routes remain. Added `/api/auth/password-reset/request`,
+`/api/auth/password-reset/confirm`, and ownership-filtered
+`GET /api/subscriptions/{id}/addons`. Existing transition accepts all contract
+lifecycle actions plus optional renewal `expiry_date`. Customers may PATCH only
+active line choices/quantities. Exact GSK/GDM handoff is `yascn/LIFECYCLE.md`;
+root README/shared contract edits remain with GSK.
+
+**Migrations:** `0002_subscription_activated_at`, with a marker backfill for
+existing active/paused/closed contracts. Quotes remain unmarked. Applied to the
+local database; fresh and existing-0001 upgrade paths passed separately.
+
+**Verification:**
+
+- `.venv/bin/python manage.py test aliar.tests yascn.tests gsk.tests --verbosity 1`:
+  **108 tests passed with production settings and shared root URLs**, 0 check issues.
+- Focused reset/lifecycle suite using real ALIAR models: **31 tests passed**.
+- Fresh temporary SQLite database upgraded from `yascn.0001_initial` with seeded
+  old active/paused/quotation rows: migrations passed, active markers backfilled,
+  quotations unmarked, Django checks passed, no migration drift.
+- `.venv/bin/python manage.py migrate --noinput`: all local migrations applied.
+- `.venv/bin/python manage.py check`: passed, 0 issues.
+- `.venv/bin/python manage.py makemigrations --check --dry-run`: no changes.
+- `git diff --check`: passed.

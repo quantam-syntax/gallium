@@ -11,4 +11,5 @@ class CatalogPermission(BasePermission):
 class SubscriptionPermission(BasePermission):
     def has_permission(self, request, view):
         return bool(request.user.is_authenticated and
-                    (request.method in SAFE_METHODS or request.user.role in ("admin", "staff")))
+                    (request.method in SAFE_METHODS or request.user.role in ("admin", "staff")
+                     or view.action in ("transition", "partial_update")))

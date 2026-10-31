@@ -1,6 +1,9 @@
 # YASCN core integration handoff to GSK, ALIAR, and GDM
 
-YASCN implements the shared contract in `CONTRACT.md`. All delivered source,
+YASCN implements the shared contract in `CONTRACT.md`. Deferred lifecycle and
+password reset are now implemented; see [LIFECYCLE.md](LIFECYCLE.md) for frontend
+payloads, email configuration, expiry maintenance, and migration instructions.
+All delivered source,
 migrations, tests, demo data creation, and documentation live in `yascn/`.
 
 ## Integration changes for GSK
@@ -8,15 +11,14 @@ migrations, tests, demo data creation, and documentation live in `yascn/`.
 1. Keep `AUTH_USER_MODEL = "yascn.User"` before the first migration. `yascn` and
    `rest_framework.authtoken` are already in `gsk.settings.INSTALLED_APPS`.
 2. ALIAR's invoice/payment models, migrations, API, and creation service arrived
-   in `dc60886` and pass compatibility tests with YASCN. Register its full-path
-   routes with `path("", include("aliar.urls"))` in root URLs.
+   in `dc60886` and pass compatibility tests with YASCN. Its routes are now mounted
+   in shared URLs by GSK's production integration commit `554e697`.
 3. YASCN's routes are already registered by GSK via
    `path("api/", include("yascn.urls"))` alongside billing routes.
-4. Use `yascn.billing.due_candidates` for the billing repository read side (see
-   below), then connect `aliar.services.create_for_candidate` for transactional
-   invoice creation in `gsk/integration.py`. Implement `invoice_exists` using
-   `aliar.models.Invoice`, including cancelled revisions. ALIAR consumes discount
-   usage and advances the cursor; do not duplicate those writes in GSK.
+4. GSK's live repository now uses `yascn.billing.due_candidates`,
+   `aliar.services.create_for_candidate`, and an invoice-existence query including
+   cancelled revisions. ALIAR consumes discount usage and advances the cursor;
+   YASCN's lifecycle uses that same production bridge to settle old periods.
 5. Run migrations, check, and the app tests with the integrated settings. No
    root configuration or another owner's source has been edited by YASCN.
 
@@ -73,15 +75,18 @@ All lists return `count`, `results`, `next`, `previous` with page size 25.
 | `/api/products`, `/api/plans`, `/api/taxes`, `/api/discounts`, `/api/templates` | List/detail to staff/admin; create/edit/delete admin only. Customers do not receive internal cost prices or discount rules. |
 | `POST /api/products/{id}/variants` | Admin creates a variant. |
 | `PATCH/DELETE /api/products/{id}/variants/{variant_id}` | Admin edits/removes a variant belonging to that product. |
-| `/api/subscriptions` | Staff/admin manage drafts; customers can only read their own list/detail. |
-| `POST /api/subscriptions/{id}/transition` | Staff/admin core actions `quote`, `confirm`, `activate`. |
+| `/api/subscriptions` | Staff/admin manage drafts and active lines; customers read their own records and PATCH active quantities/add-ons. |
+| `POST /api/subscriptions/{id}/transition` | Core staff actions and plan-controlled pause/resume/renew/close, with customer ownership checks. |
+| `GET /api/subscriptions/{id}/addons` | Ownership-filtered safe product choices, omitting internal costs. |
+| `POST /api/auth/password-reset/request` and `/confirm` | Captured-email/SMTP reset request and single-use password confirmation. |
 
 Referenced records cannot be deleted; errors are field errors or `detail`.
 Product creation accepts nested `variants`. Existing variants use their explicit
 endpoint, preserving IDs referenced by subscription lines. Templates and draft
 subscriptions accept complete replacement `lines` arrays on PUT/PATCH; each
-line must include product and quantity. Only drafts may be edited or deleted.
-Customers receive an empty `permitted_actions` list during Phase 1. Server-owned
+line must include product and quantity. Only drafts may be deleted; active line
+edits settle historical billing before changing the next cycle. Responses expose
+`permitted_actions` for the current role and plan. Server-owned
 subscription status, number, and billing cursor cannot be supplied in requests.
 
 ## JSON examples
@@ -210,24 +215,17 @@ must use the returned fresh instance. This prevents stale Python model state
 from reopening a subscription that was already closed. Drafts whose template
 validity has elapsed no longer advertise or accept `quote`.
 
-## Phase 2 boundary
+## Phase 2 delivery
 
-The unblocked core integration handoff is delivered. Tests use the real YASCN
-database models and GSK's preview function; HTTP preview tests inject only a
-read repository and an explicit no-existing-invoice answer. They do **not** prove
-invoice persistence, rerun idempotency, payments, or the full integrated demo.
-ALIAR's new combined tests now cover real invoice persistence, partial payments,
-dashboard totals, customer ownership, catch-up, and a duplicate-free second run.
-The combined command `.venv/bin/python manage.py test aliar.tests yascn.tests
-gsk.tests --settings=aliar.test_settings --verbosity 1` passes **76 tests**.
-Those tests still patch repository selection and use test URL wiring; they do
-not establish that the production wiring or browser demo gate has passed.
-Shared billing endpoints still return 503 until GSK implements the repository.
-The new GDM dashboard is present but still uses local in-memory demo data.
+GSK's `554e697` production bridge passes the backend gate and the user authorized
+the deferred work. YASCN now implements reset-token delivery/confirmation,
+pause/resume/renew/close, expiry/auto-close maintenance, and next-cycle line edits.
+`yascn.0002_subscription_activated_at` must be applied. See
+[LIFECYCLE.md](LIFECYCLE.md) for exact payloads and operational behavior.
 
-Password reset/SMTP delivery, pause/resume/renew/close, subscription-expiry state
-maintenance/auto-close, and customer next-cycle add-on/quantity changes are
-deferred as instructed. Flags and states are modeled now; unsupported actions
-are not advertised. Active-line writes remain blocked until the catch-up billing
-integration can ensure old periods use old terms. Full billing/payment/dashboard
-and frontend gates require the other owners' deliveries.
+The combined production-settings suite passes **108 tests**, including real
+invoice persistence, payment/dashboard checks, catch-up, paused-cycle skipping,
+renewal anchors, pricing protection, and rollback on finance errors. Tests also
+verify single-use reset links, expiry, token revocation, SMTP configuration, and
+captured-mail delivery. The frontend still needs Gauthami's API connections and
+reset/lifecycle UI; no browser integration completion is claimed by YASCN.

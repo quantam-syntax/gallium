@@ -205,7 +205,9 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
     def get_permitted_actions(self, obj):
         if self.context["request"].user.role == "customer":
-            return []
+            if obj.status in ("draft", "quotation", "confirmed"):
+                return []
+            return [action for action in obj.permitted_actions if action in ("pause", "resume", "renew", "close")]
         return obj.permitted_actions
 
     def validate(self, attrs):
@@ -230,7 +232,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         end = attrs.get("expiry_date", getattr(self.instance, "expiry_date", None))
         if start and end and end <= start:
             raise serializers.ValidationError({"expiry_date": "Must be after start_date (exclusive expiry)."})
-        if ((plan.available_from and today < plan.available_from)
+        if (not self.instance or self.instance.status == "draft") and ((plan.available_from and today < plan.available_from)
                 or (plan.available_to and today > plan.available_to)):
             raise serializers.ValidationError({"plan": "Plan is not available for new sign-ups today."})
         if not self.instance and "lines" not in attrs:
@@ -268,3 +270,38 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             for line in lines:
                 SubscriptionLine.objects.create(subscription=instance, **line)
         return instance
+
+
+class CustomerProductSerializer(serializers.ModelSerializer):
+    variants = VariantSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = ["id", "name", "type", "sale_price_paise", "variants"]
+
+
+class CustomerLineEditSerializer(serializers.Serializer):
+    """Customers choose products/variants/quantities, never money or tax rates."""
+    lines = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+
+    def validate_lines(self, lines):
+        subscription = self.context["subscription"]
+        existing = {(line.product_id, line.variant_id): line for line in subscription.lines.filter(active=True)}
+        seen, validated = set(), []
+        for line in lines:
+            if set(line) - {"product_id", "variant_id", "quantity"}:
+                raise serializers.ValidationError("Only product_id, variant_id, and quantity may be changed.")
+            serializer = SubscriptionLineSerializer(data=line)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
+            key = (data["product"].pk, getattr(data.get("variant"), "pk", None))
+            if key in seen:
+                raise serializers.ValidationError("Combine duplicate product/variant lines into one quantity.")
+            seen.add(key)
+            if key in existing:
+                data["unit_price_paise"] = existing[key].unit_price_paise
+                data["tax"] = existing[key].tax
+            data["active"] = True
+            validated.append(data)
+        check_quantity(subscription.plan, validated)
+        return validated
