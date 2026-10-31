@@ -3,7 +3,7 @@
 ## Current handoff
 
 - Generated invoices, partial payments, outstanding balances, and dashboard reporting are integrated. The live browser story has confirmed the payment and refresh path.
-- Next: support Gauthami's invoice send/cancel/reissue controls and fix any API or permission defects in `aliar/`. Recheck cancellation/reissue, payment balance, ownership, and date-filter tests after changes; update `aliar/aliarprogress.md`.
+- Gauthami has connected invoice send/cancel/reissue controls. Next: join the full browser rehearsal and fix any API or permission defects found in `aliar/`. Recheck cancellation/reissue, payment balance, ownership, and date-filter tests after changes; update `aliar/aliarprogress.md`.
 - GSK owns root integration and final demo validation; tell GSK before changing shared response shapes.
 
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for invoice fields, statuses, routes, response fields, and duplicate prevention; tell GSK before changing an interface.

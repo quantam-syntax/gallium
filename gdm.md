@@ -3,7 +3,8 @@
 ## Current handoff
 
 - The catalog now has a more expressive responsive view, subtle motion with reduced-motion support, and working admin forms for variants, taxes, discounts, and quotation templates. Product/plan forms include tax and plan controls. Quotation creation can select a template and subscription discount. Keep your changes inside `gdm/` and update `gdm/gdmprogress.md`.
-- Next: add password-reset request/confirm screens, customer add-on and quantity editing for the next billing cycle, and staff invoice send/cancel/reissue controls using the documented API. Show success/error states and confirm customer role boundaries in the browser.
+- Password-reset request/confirm, customer add-on and quantity editing, and staff invoice send/cancel/reissue controls are now present. Next: rehearse these flows end to end against the integrated backend, confirm role boundaries and error states, then capture the demo with GSK.
+- Before another commit in Gauthami's clone, set `git config user.name "Gauthami"` and `git config user.email "vgauthami007@gmail.com"`; commit `ab89743` still displays **AKASH S KISHOR** as its author. Coordinate any shared-history correction with GSK.
 - Preserve the current catalog and dashboard visual quality while extending these flows. Run `npm run build` and the complete seeded story after your changes. Let GSK integrate and push root changes.
 
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for routes, statuses, money units, and response fields; tell GSK before changing an interface.

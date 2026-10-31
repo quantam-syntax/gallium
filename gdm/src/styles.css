@@ -178,6 +178,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .status-partial, .status-quotation, .status-sent { color: #b47d2e; background: #fff5e6; }
 .status-overdue, .status-expired { color: #c06455; background: #fff0ed; }
 .status-paused, .status-draft { color: #788294; background: #f0f2f6; }
+.status-cancelled { color: #a7534e; background: #fff0ed; }
 .row-action-select { padding: 5px 5px; border: 1px solid #e9ebf0; border-radius: 5px; color: #647083; background: #fff; font-size: 8px; }
 .table-empty { display: flex; align-items: center; gap: 11px; padding: 20px 3px; color: #70798a; }
 .table-empty strong, .table-empty small { display: block; }
@@ -360,10 +361,10 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .addon-remove, .addon-add { min-height: 34px; padding: 0 8px; border: 0; color: #9c5551; background: transparent; font-size: 9px; font-weight: 600; }
 .addon-remove:disabled { cursor: not-allowed; opacity: .4; }
 .addon-add { margin-top: 10px; color: #5e6fce; }
-.addon-line-list { display: grid; gap: 7px; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid #eeeff5; }
-.addon-line-list > strong { color: #707b8f; font-size: 9px; }
-.addon-line-list > span { display: flex; justify-content: space-between; gap: 10px; color: #727d90; font-size: 10px; }
-.addon-line-list b { color: #47546b; font-weight: 600; }
+.portal-line-list { display: grid; gap: 7px; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid #eeeff5; }
+.portal-line-list > strong { color: #707b8f; font-size: 9px; }
+.portal-line-list > span { display: flex; justify-content: space-between; gap: 10px; color: #727d90; font-size: 10px; }
+.portal-line-list b { color: #47546b; font-weight: 600; }
 .invoice-row-actions { min-width: 130px; }
 .invoice-row-actions .table-action-link { display: block; margin: 4px 0; text-align: left; }
 .invoice-danger-action { color: #b34f49; }

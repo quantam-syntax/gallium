@@ -5,6 +5,7 @@
 - Added `python manage.py run_billing [--as-of YYYY-MM-DD]`, calling the same idempotent billing service as the Control Tower. Schedule billing before `maintain_subscriptions` so final periods can be invoiced.
 - Built and browser-verified the catalog admin forms with GDM's frontend. Updated each owner's root brief with current remaining work.
 - Next: final seeded browser rehearsal, any teammate integration fixes, and demo recording/submission.
+- Pulled Gauthami's UI commit `ab89743`: password recovery, customer add-on editing, and invoice actions are present. Full backend suite (109 tests), Django check/migration check, and Vite build pass. Fixed cancelled-invoice display and customer line styling found in review. The commit author still displays AKASH S KISHOR; Gauthami must correct local Git config before her next commit.
 
 ## Done
 

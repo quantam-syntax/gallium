@@ -9,6 +9,7 @@
 - Added customer-facing product/variant and quantity editing for every active, unexpired subscription. The editor uses the owner-scoped add-on endpoint and sends a complete line replacement; the backend retains negotiated prices and settles due periods under the previous items.
 - Added staff/admin invoice send/resend, cancellation, and cancelled-invoice reissue actions, with controls shown only for eligible statuses and backend validation errors surfaced.
 - `npm run build` passes and the login, forgot-password, and reset-link screens have been browser-smoke-tested.
+- GSK's pulled-commit review fixed cancelled invoices appearing as paid in both staff and customer tables, excluded cancelled invoices from the listed Invoiced metric, marked cancelled print views, and restored styling for customer product lines. Build passes after these corrections.
 - Remaining: rehearse the integrated flow with the team and capture the requested demo recording once the backend/demo environment and participants are available.
 
 ## Done

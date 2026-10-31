@@ -3,7 +3,7 @@
 ## Current handoff
 
 - Core identity, catalog, quotation, subscription lifecycle, password reset, and next-cycle edit APIs are available. The new catalog forms exercise variant, tax, discount, and template creation through your routes.
-- Next: support Gauthami as she connects password reset and customer add-on/quantity screens. Resolve any API defects or permission gaps she finds in `yascn/`, and keep `yascn/yascnprogress.md` current. Recheck ownership and lifecycle tests after fixes.
+- Gauthami has connected password reset and customer add-on/quantity screens. Next: join the full browser rehearsal, resolve any API defects or permission gaps found in `yascn/`, and keep `yascn/yascnprogress.md` current. Recheck ownership and lifecycle tests after fixes.
 - GSK owns final integration and the demo; communicate any contract change before making it.
 
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for models, statuses, routes, response fields, and the billing cursor; tell GSK before changing an interface.

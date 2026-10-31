@@ -33,7 +33,7 @@ export default function InvoicePrint({ invoice, onClose }) {
       <article className="invoice-paper">
         <header className="invoice-paper-header">
           <div className="auth-brand"><span className="brand-mark"><span /></span><span>brightloop<span className="brand-dot">.</span></span></div>
-          <div className="invoice-wordmark"><span>INVOICE</span><strong>{invoice.number}</strong></div>
+          <div className="invoice-wordmark"><span>{invoice.status === "cancelled" ? "CANCELLED INVOICE" : "INVOICE"}</span><strong>{invoice.number}</strong></div>
         </header>
         <div className="invoice-meta">
           <div><small>BILLED TO</small><strong>{invoice.customer_name}</strong><span>Subscription {invoice.subscription_number || invoice.subscription_id}</span></div>
@@ -59,7 +59,7 @@ export default function InvoicePrint({ invoice, onClose }) {
           <div><span>Tax</span><strong>{money(invoice.tax_paise)}</strong></div>
           <div className="invoice-grand-total"><span>Total</span><strong>{money(invoice.total_paise)}</strong></div>
           <div><span>Paid</span><strong>{money(invoice.paid_paise)}</strong></div>
-          <div className="invoice-balance"><span>Balance due</span><strong>{money(invoice.balance_paise)}</strong></div>
+          <div className="invoice-balance"><span>{invoice.status === "cancelled" ? "Cancelled · no balance due" : "Balance due"}</span><strong>{money(invoice.balance_paise)}</strong></div>
         </section>
         <footer className="invoice-paper-footer">
           <strong>Thank you for your business.</strong>

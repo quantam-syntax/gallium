@@ -75,9 +75,10 @@ periods before maintenance finalizes expired or auto-close contracts. Both
 commands accept `--as-of YYYY-MM-DD` for a past date. The Vite server proxies
 `/api` to Django on `127.0.0.1:8000`.
 
-The reset-password and customer add-on/quantity screens have not yet been
-connected in React. Their backend routes and payloads are documented in
-`yascn/LIFECYCLE.md` and `CONTRACT.md`.
+The React app now includes password recovery, customer add-on/quantity editing,
+and staff invoice send/cancel/reissue controls. Their backend routes and payloads
+are documented in `yascn/LIFECYCLE.md` and `CONTRACT.md`. The final full-browser
+rehearsal of these newer flows and the demo recording remain outstanding.
 
 The local performance check used a temporary database with 1,003 subscriptions
 and 1,004 invoices. Headless Chromium reached overview, subscriptions, and

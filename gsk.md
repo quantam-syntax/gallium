@@ -4,7 +4,7 @@
 
 - Billing preview/run, integration, and the live admin-to-payment path are working. `python manage.py run_billing` now invokes the same idempotent billing service; schedule it daily, then run `python manage.py maintain_subscriptions` after billing so expired final periods are not skipped.
 - Finish the final full-browser rehearsal and recording. Verify the seeded Odoo ₹560 variant, quotation/template, invoice, partial payment, customer portal, and finance totals in the demo environment. Keep integration and root files with GSK.
-- Gauthami should take the remaining UI screens: password reset, customer add-on/quantity changes, and staff invoice send/cancel/reissue. Coordinate against the existing API contract; request root integration changes from GSK.
+- Gauthami has added the remaining UI screens for password reset, customer add-on/quantity changes, and staff invoice send/cancel/reissue. Rehearse them against the integrated backend and fix any issues found before recording.
 
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the single source of truth for models, statuses, routes, response shapes, and billing rules. Update it before any shared interface changes; tell all three teammates when it changes.
 

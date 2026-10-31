@@ -151,6 +151,14 @@ function Status({ children, tone }) {
   return <span className={`status status-${statusTone}`}>{children}</span>;
 }
 
+function invoicePresentation(invoice) {
+  if (invoice.status === "cancelled") return { label: "Cancelled", tone: "cancelled", balance: "Cancelled" };
+  if (invoice.status === "paid" || invoice.balance_paise === 0) return { label: "Paid", tone: "paid", balance: "Paid in full" };
+  if (invoice.is_overdue) return { label: "Overdue", tone: "overdue", balance: `${money(invoice.balance_paise)} due` };
+  if (invoice.paid_paise > 0) return { label: "Partial", tone: "partial", balance: `${money(invoice.balance_paise)} due` };
+  return { label: invoice.status, tone: invoice.status, balance: `${money(invoice.balance_paise)} due` };
+}
+
 function Button({ children, kind = "secondary", icon, onClick, className = "", type = "button", disabled = false }) {
   return (
     <button className={`button button-${kind} ${className}`} onClick={onClick} type={type} disabled={disabled}>
@@ -648,7 +656,7 @@ function Invoices({ invoices, canManage, busy, onConfirm, onPayment, onAction, o
     <>
       <PageHeader eyebrow="BILLING & PAYMENTS" title="Invoices" subtitle="Every invoice, payment, and outstanding balance in one place." action={<Button icon="file" onClick={onPrint}>Print</Button>} />
       <section className="metric-grid compact-metrics invoice-metrics">
-        <SimpleMetric label="Invoiced" value={money(invoices.reduce((sum, item) => sum + item.total_paise, 0))} helper="Across listed invoices" icon="receipt" />
+        <SimpleMetric label="Invoiced" value={money(invoices.reduce((sum, item) => sum + (item.status === "cancelled" ? 0 : item.total_paise), 0))} helper="Across listed active invoices" icon="receipt" />
         <SimpleMetric label="Collected" value={money(invoices.reduce((sum, item) => sum + item.paid_paise, 0))} helper="Payments received" icon="check" />
         <SimpleMetric label="Outstanding" value={money(invoices.reduce((sum, item) => sum + item.balance_paise, 0))} helper="Remaining balances" icon="clock" />
       </section>
@@ -656,11 +664,13 @@ function Invoices({ invoices, canManage, busy, onConfirm, onPayment, onAction, o
         <div className="list-toolbar"><div><h2>All invoices</h2><span>{invoices.length} records</span></div><span className="select-chip">All statuses <span>⌄</span></span></div>
         {invoices.length ? <div className="table-scroll"><table className="data-table full-table">
           <thead><tr><th>INVOICE</th><th>CUSTOMER</th><th>ISSUED</th><th>DUE DATE</th><th>AMOUNT</th><th>STATUS</th><th /></tr></thead>
-          <tbody>{invoices.map((invoice) => <tr key={invoice.id}>
+          <tbody>{invoices.map((invoice) => {
+            const presentation = invoicePresentation(invoice);
+            return <tr key={invoice.id}>
             <td><button className="invoice-number-link" onClick={() => onInvoice(invoice)}>{invoice.number}</button><small className="table-secondary">{invoice.subscription}</small></td>
             <td>{invoice.customer_name}</td><td>{shortDate(invoice.issued_on)}</td><td>{shortDate(invoice.due_on)}</td>
-            <td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} due` : "Paid in full"}</small></td>
-            <td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.is_overdue ? "overdue" : "confirmed"}>{invoice.balance_paise === 0 ? "Paid" : invoice.is_overdue ? "Overdue" : invoice.paid_paise ? "Partial" : invoice.status}</Status></td>
+            <td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{presentation.balance}</small></td>
+            <td><Status tone={presentation.tone}>{presentation.label}</Status></td>
             <td className="invoice-row-actions">
               <button className="table-action-link" disabled={busy} onClick={() => onInvoice(invoice)}>View / print</button>
               {canManage && invoice.status === "draft" && <button className="table-action-link" disabled={busy} onClick={() => onConfirm(invoice)}>Confirm</button>}
@@ -669,7 +679,7 @@ function Invoices({ invoices, canManage, busy, onConfirm, onPayment, onAction, o
               {canManage && ["draft", "confirmed"].includes(invoice.status) && invoice.paid_paise === 0 && <button className="table-action-link invoice-danger-action" disabled={busy} onClick={() => onAction(invoice, "cancel")}>Cancel invoice</button>}
               {canManage && invoice.status === "cancelled" && <button className="table-action-link" disabled={busy} onClick={() => onAction(invoice, "reissue")}>Reissue</button>}
             </td>
-          </tr>)}</tbody>
+          </tr>})}</tbody>
         </table></div> : <div className="table-empty"><span className="empty-check"><Icon name="search" /></span><div><strong>No invoices found</strong><small>Try adjusting your search.</small></div></div>}
       </section>
     </>
@@ -744,7 +754,7 @@ function CustomerPortal({ user, subscriptions, invoices, onAction, onInvoice, on
           <div className="portal-sub-header"><div><span className="eyebrow">YOUR SUBSCRIPTION</span><Status tone={subscription.status}>{subscription.status}</Status></div></div>
           <h2>{subscription.plan}</h2><p className="portal-sub-number">{subscription.number} · Started {shortDate(subscription.start_date)}</p>
           <div className="portal-sub-stats"><div><small>Subscription price</small><strong>{money(subscription.mrr_paise)}</strong></div><div><small>Next billing date</small><strong>{shortDate(subscription.next_bill_date)}</strong></div><div><small>Plan</small><strong>{subscription.plan}</strong><small>{subscription.frequency || "Recurring subscription"}</small></div></div>
-          {subscription.lines?.length > 0 && <div className="portal-line-list"><strong>Included products</strong>{subscription.lines.filter((line) => line.active !== false).map((line, index) => <span key={`${line.product_id}-${line.variant_id || "base"}-${index}`}>{line.description} <b>× {line.quantity}</b></span>)}</div>}
+          {subscription.lines?.some((line) => line.active !== false) && <div className="portal-line-list"><strong>Included products</strong>{subscription.lines.filter((line) => line.active !== false).map((line, index) => <span key={`${line.product_id}-${line.variant_id || "base"}-${index}`}>{line.description} <b>× {line.quantity}</b></span>)}</div>}
           <div className="portal-actions">
             {subscription.permitted_actions.map((action) => <Button key={action} disabled={busy} onClick={() => onAction(subscription.id, action)}>{action === "close" ? "Cancel subscription" : action[0].toUpperCase() + action.slice(1)}</Button>)}
             {canEditLines && <Button disabled={busy} onClick={() => onManageLines(subscription)}>Manage products & quantities</Button>}
@@ -755,7 +765,9 @@ function CustomerPortal({ user, subscriptions, invoices, onAction, onInvoice, on
         <div className="list-toolbar"><div><h2>Your invoices</h2><span>Access your invoice history</span></div></div>
         {invoices.length ? <div className="table-scroll"><table className="data-table full-table">
           <thead><tr><th>INVOICE</th><th>ISSUED</th><th>AMOUNT</th><th>STATUS</th><th /></tr></thead>
-          <tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button className="invoice-number-link" onClick={() => onInvoice(invoice)}>{invoice.number}</button><small className="table-secondary">Due {shortDate(invoice.due_on)}</small></td><td>{shortDate(invoice.issued_on)}</td><td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} remaining` : "Paid in full"}</small></td><td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.paid_paise ? "partial" : invoice.status}>{invoice.balance_paise === 0 ? "Paid" : invoice.paid_paise ? "Partial" : "Due"}</Status></td><td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View invoice</button></td></tr>)}</tbody>
+          <tbody>{invoices.map((invoice) => {
+            const presentation = invoicePresentation(invoice);
+            return <tr key={invoice.id}><td><button className="invoice-number-link" onClick={() => onInvoice(invoice)}>{invoice.number}</button><small className="table-secondary">Due {shortDate(invoice.due_on)}</small></td><td>{shortDate(invoice.issued_on)}</td><td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{presentation.balance}</small></td><td><Status tone={presentation.tone}>{presentation.label}</Status></td><td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View invoice</button></td></tr>})}</tbody>
         </table></div> : <div className="table-empty portal-empty"><span className="empty-check"><Icon name="receipt" /></span><div><strong>No invoices yet</strong><small>Your invoices will appear here after your next billing run.</small></div></div>}
       </section>
       <footer className="portal-footer">Secure customer portal <span>·</span> Need help? <a href="mailto:hello@brightloop.in">Contact Brightloop</a></footer>
