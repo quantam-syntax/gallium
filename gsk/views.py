@@ -4,9 +4,11 @@ from datetime import date
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from .integration import IntegrationPending, get_repository
+from .assistant import answer as assistant_answer
 from .product_analytics import product_trends
 from .service import preview, run
 
@@ -53,3 +55,29 @@ class ProductTrendsView(APIView):
         if getattr(request.user, "role", None) not in ("admin", "staff"):
             return Response({"detail": "staff access required"}, status=403)
         return Response(product_trends())
+
+
+class AssistantChatView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "assistant"
+
+    def post(self, request):
+        if getattr(request.user, "role", None) not in ("admin", "staff", "customer"):
+            return Response({"detail": "account role required"}, status=403)
+        if not isinstance(request.data, dict):
+            return Response({"detail": "Expected a chat request object."}, status=400)
+        message = request.data.get("message")
+        history = request.data.get("history", [])
+        if not isinstance(message, str) or not message.strip() or len(message) > 1000:
+            return Response({"message": "Enter a question of 1–1000 characters."}, status=400)
+        if (not isinstance(history, list) or len(history) > 8 or any(
+            not isinstance(item, dict) or item.get("role") not in ("user", "assistant")
+            or not isinstance(item.get("content"), str) or len(item["content"]) > 1000
+            for item in history
+        )):
+            return Response({"history": "Use at most eight short chat messages."}, status=400)
+        try:
+            return Response(assistant_answer(message.strip(), history, request.user))
+        except RuntimeError as exc:
+            return Response({"detail": str(exc)}, status=503)

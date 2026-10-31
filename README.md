@@ -4,6 +4,25 @@ Subscription billing demo built by four owners. Read [CONTRACT.md](CONTRACT.md) 
 
 For the recording sequence and setup checklist, use [DEMO.md](DEMO.md).
 
+## Brightloop assistant
+
+The floating **Ask Brightloop** chat is available to signed-in staff and customers.
+Without an API key it runs in clearly labelled **data-backed demo mode**, answering
+questions about current subscriptions, MRR, monthly revenue, overdue invoices,
+product momentum, and customer billing using read-only database queries. Customers
+only receive their own subscription and invoice data.
+
+For open-ended AI answers, set `OPENAI_API_KEY` in the backend process environment
+before starting Django. `OPENAI_MODEL` optionally overrides the default
+`gpt-6-luna`. The key stays on the server; the browser only calls
+`POST /api/assistant/chat`. The endpoint is authenticated, limited to 30 requests
+per user per hour, and does not perform billing actions. The model request uses
+the [OpenAI Responses API](https://developers.openai.com/api/docs/guides/text)
+with `store: false`. OpenAI API access and billing are separate from a ChatGPT
+subscription. When the key is enabled, the endpoint sends the role-scoped
+billing snapshot and recent chat messages to OpenAI for each answer. Never
+commit an API key.
+
 ## Sync after the author-name correction
 
 On 31 October, `main` history was rewritten to correct all GDM commits recorded with **AKASH S KISHOR** and `vgauthami007@gmail.com` to the author and committer name **Gauthami**. The account and email remain the same. Later commits have new hashes because their parent hashes changed; the application changes were preserved. A normal `git pull` from an older clone may report divergent branches.

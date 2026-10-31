@@ -18,6 +18,7 @@
 | 1:45–2:35 | Open **Invoices**. Confirm the new draft invoice, record a ₹500 partial payment with a method, payment date, and a short reference note. Show the remaining balance and use **View / print**. | “The invoice is built from the subscription; payments and outstanding amounts update from saved records.” |
 | 2:35–3:15 | Return to **Overview** to show collected and outstanding totals. Sign out and sign in as the seeded customer. Show their subscription, included product, and invoice balance. | “Finance and the customer see consistent numbers, with customer access restricted to their own data.” |
 | 3:15–3:45 | If time allows, open **Manage products & quantities** in the customer portal and explain changes apply to future invoices. | “Customers can self-serve without changing an already issued invoice.” |
+| Optional | Click **Ask Brightloop** and ask “What is our MRR?” or “Which invoices are overdue?” Show the answer grounded in saved data. | “The assistant reads live billing figures with role-scoped access. Demo mode works without an API key; a server key enables open-ended AI answers.” |
 
 ## Rehearsal notes
 

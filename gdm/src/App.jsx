@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Auth from "./Auth.jsx";
 import CatalogEditor from "./CatalogEditor.jsx";
 import CustomerAddonEditor from "./CustomerAddonEditor.jsx";
+import AssistantChat from "./AssistantChat.jsx";
 import InvoicePrint from "./InvoicePrint.jsx";
 import { apiList, apiRequest, clearToken, getToken, storeToken } from "./api.js";
 
@@ -1453,6 +1454,7 @@ function App() {
             <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} />}
         </main>
       </div>
+      <AssistantChat role={user.role} />
       {notice && <div className="toast" role="status"><span className="toast-check"><Icon name="check" size={15} /></span>{notice}</div>}
       {paymentInvoice !== null && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPaymentInvoice(null); }}>
         <form className="payment-modal" onSubmit={recordPayment}>
