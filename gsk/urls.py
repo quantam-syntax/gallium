@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
-from .views import BillingPreviewView, BillingRunView
+from .views import BillingPreviewView, BillingRunView, ProductTrendsView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -10,4 +10,5 @@ urlpatterns = [
     path("", include("aliar.urls")),
     path("api/billing/preview", BillingPreviewView.as_view()),
     path("api/billing/run", BillingRunView.as_view()),
+    path("api/analytics/products", ProductTrendsView.as_view()),
 ]

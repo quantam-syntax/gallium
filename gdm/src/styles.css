@@ -726,6 +726,34 @@ body, .customer-shell { background: #f4f6fa; }
 .catalog-spotlight-stats strong { color: #fff; font-family: Manrope, sans-serif; font-size: 25px; line-height: 1; }
 .catalog-spotlight-stats span { color: #d5def0; font-size: 10px; }
 .catalog-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.catalog-trends { margin: 0 0 18px; padding: 24px 28px; border: 1px solid #e5eaf2; border-radius: 16px; background: linear-gradient(120deg, #fff, #f8faff); box-shadow: 0 8px 25px rgb(35 48 78 / 4%); }
+.catalog-trends-heading { display: flex; align-items: start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+.catalog-trends-heading .eyebrow { margin: 0 0 7px; color: #6970bc; }
+.catalog-trends-heading h2 { margin: 0; color: #26354e; font-family: Manrope, sans-serif; font-size: 21px; }
+.catalog-trends-heading p:last-child { margin: 6px 0 0; color: #8290a2; font-size: 11px; }
+.catalog-trends-heading > span { flex: none; color: #8792a3; font-size: 11px; }
+.catalog-trends-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.catalog-trends-columns > div { min-width: 0; padding: 16px; border: 1px solid #e9edf5; border-radius: 11px; background: #fff; }
+.catalog-trends-columns h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: #33415b; font-size: 13px; }
+.trend-indicator { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; font-size: 16px; }
+.trend-indicator.trend-up { background: #e7f8ee; }
+.trend-indicator.trend-down { background: #fff0e9; }
+.catalog-trend-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid #f1f3f7; font-size: 11px; }
+.catalog-trend-row > span { overflow: hidden; color: #52617b; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.catalog-trend-row strong { font-size: 13px; }
+.catalog-trend-row small { color: #9aa3b1; }
+.catalog-trends-empty { margin: 0; color: #9aa3b1; font-size: 11px; }
+.trend-up, .trend-fast { color: #19835c; }
+.trend-down, .trend-slow { color: #bc674b; }
+.trend-steady, .trend-no_data { color: #7b86a2; }
+.catalog-product-trend { width: 100%; margin: 0 0 13px; padding: 11px 12px 9px; border: 1px solid #eaf0f6; border-radius: 10px; background: #fbfcff; }
+.catalog-product-trend > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.catalog-product-trend span, .catalog-product-trend > small { color: #8c97a8; font-size: 9px; }
+.catalog-product-trend strong { white-space: nowrap; font-size: 14px; }
+.catalog-product-trend strong small { color: #9ba5b2; font-size: 8px; font-weight: 500; }
+.product-sparkline { display: block; width: 100%; height: 32px; margin: 3px 0 0; color: #8992b6; }
+.product-sparkline-fast { color: #45aa83; }
+.product-sparkline-slow { color: #e4a084; }
 .catalog-item { display: flex; flex-direction: column; align-items: stretch; gap: 0; min-height: 205px; overflow: hidden; padding: 18px; border-color: #e6eaf3; border-radius: 13px; background: linear-gradient(150deg, #fff 58%, #f8f9ff); }
 .catalog-item-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .catalog-item .product-icon { width: 40px; height: 40px; border-radius: 11px; }
@@ -793,6 +821,9 @@ body, .customer-shell { background: #f4f6fa; }
   .catalog-spotlight-stats strong { font-size: 21px; }
   .catalog-spotlight-stats span { font-size: 9px; }
   .catalog-grid, .catalog-grid-single { grid-template-columns: 1fr; }
+  .catalog-trends { padding: 18px; }
+  .catalog-trends-heading { flex-direction: column; gap: 5px; }
+  .catalog-trends-columns { grid-template-columns: 1fr; }
   .catalog-grid-single .catalog-item { display: flex; }
   .catalog-grid-single .catalog-variant-list { justify-content: flex-start; margin-bottom: 13px; }
   .catalog-item { min-height: 185px; }

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .integration import IntegrationPending, get_repository
+from .product_analytics import product_trends
 from .service import preview, run
 
 
@@ -43,3 +44,12 @@ class BillingPreviewView(_BillingView):
 class BillingRunView(_BillingView):
     def post(self, request):
         return self._handle(request, run)
+
+
+class ProductTrendsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if getattr(request.user, "role", None) not in ("admin", "staff"):
+            return Response({"detail": "staff access required"}, status=403)
+        return Response(product_trends())

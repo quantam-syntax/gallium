@@ -37,6 +37,24 @@ BRIGHTLOOP_DEMO_PASSWORD='ChooseYourOwn!123' .venv/bin/python manage.py seed_yas
 The seed creates `admin@brightloop.example`, `customer@brightloop.example`, and
 an active subscription due today. Existing account passwords and billing cursors
 are preserved, so use the password from the first seed on subsequent runs.
+For a populated, explicitly fictional showcase, run:
+
+```bash
+BRIGHTLOOP_DEMO_PASSWORD='ChooseYourOwn!123' .venv/bin/python manage.py seed_showcase
+```
+
+This adds 25 products with variants, 3 plans, 2 taxes, 2 discounts, 3 quotation
+templates, 50 customer accounts, and 300 active subscriptions. It creates
+invoices through the normal billing and finance services, confirms them, and
+records a mix of full, partial, and outstanding payments. The command is safe
+to rerun: stable `SUB-SHOWCASE-*` numbers prevent duplicate contracts and the
+billing period constraint prevents duplicate invoices. It only bills showcase
+subscriptions, so the original demo billing cursor is untouched. Existing
+account passwords are preserved. The product catalog shows nine weekly adoption
+points and the fastest growing and slowing products. `GET /api/analytics/products`
+is available to staff and admin; it counts current active subscriptions by
+contract start date in adjacent 30-day windows. It is an adoption view, not a
+historical add-on event log.
 After the first billing run, the seeded subscription is no longer due. Create a
 new quotation/subscription in the UI for another walkthrough; do not reset the
 cursor on a previously billed subscription.

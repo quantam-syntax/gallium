@@ -59,18 +59,18 @@ function dateInputValue(date) {
 }
 
 function normalizeSubscription(subscription, plans, products, invoices, user) {
-  const planId = typeof subscription.plan === "object" ? subscription.plan.id : subscription.plan;
+  const planId = subscription.plan && typeof subscription.plan === "object" ? subscription.plan.id : subscription.plan;
   const plan = plans.find((item) => item.id === planId);
-  const customerId = typeof subscription.customer === "object" ? subscription.customer.id : subscription.customer;
+  const customerId = subscription.customer && typeof subscription.customer === "object" ? subscription.customer.id : subscription.customer;
   const linkedInvoice = invoices.find((invoice) => invoice.customer_id === customerId);
   const customerName = user.role === "customer"
     ? user.company_name || user.full_name
-    : linkedInvoice?.customer_name || (typeof subscription.customer === "object"
+    : linkedInvoice?.customer_name || (subscription.customer && typeof subscription.customer === "object"
       ? subscription.customer.full_name || subscription.customer.email
       : `Customer #${customerId}`);
   const lines = (subscription.lines || []).map((line) => {
-    const productId = typeof line.product_id === "object" ? line.product_id.id : line.product_id;
-    const variantId = typeof line.variant_id === "object" ? line.variant_id.id : line.variant_id;
+    const productId = line.product_id && typeof line.product_id === "object" ? line.product_id.id : line.product_id;
+    const variantId = line.variant_id && typeof line.variant_id === "object" ? line.variant_id.id : line.variant_id;
     const product = products.find((item) => item.id === productId);
     const variant = product?.variants?.find((item) => item.id === variantId);
     return {
@@ -695,8 +695,19 @@ function Invoices({ invoices, canManage, busy, onConfirm, onPayment, onAction, o
   );
 }
 
-function Catalog({ products, plans, taxes, discounts, templates, subscriptions, canManage, onCreateProduct, onCreatePlan, onCreateExtra }) {
+function ProductSparkline({ values = [], pace = "no_data" }) {
+  const max = Math.max(1, ...values);
+  const points = values.map((value, index) => `${index * 15},${30 - value / max * 25}`).join(" ");
+  return <svg className={`product-sparkline product-sparkline-${pace}`} viewBox="0 0 120 32" preserveAspectRatio="none" role="img" aria-label={`Weekly new active subscriptions: ${values.join(", ") || "none"}`}>
+    <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+  </svg>;
+}
+
+function Catalog({ products, plans, taxes, discounts, templates, subscriptions, trends, canManage, onCreateProduct, onCreatePlan, onCreateExtra }) {
   const variantCount = products.reduce((total, product) => total + (product.variants?.length || 0), 0);
+  const trendById = new Map((trends?.products || []).map((trend) => [trend.product_id, trend]));
+  const growing = [...(trends?.products || [])].filter((item) => item.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, 3);
+  const slowing = [...(trends?.products || [])].filter((item) => item.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 3);
   return (
     <>
       <PageHeader eyebrow="YOUR OFFERING" title="Products & plans" subtitle="Keep your catalog tidy and your subscription plans clear." action={canManage && <Button kind="primary" icon="plus" onClick={onCreateProduct}>Add product</Button>} />
@@ -708,14 +719,22 @@ function Catalog({ products, plans, taxes, discounts, templates, subscriptions, 
           <div><strong>{plans.length}</strong><span>Recurring plan{plans.length === 1 ? "" : "s"}</span></div>
         </div>
       </section>
+      {trends && <section className="catalog-trends" aria-label="Product adoption trends">
+        <div className="catalog-trends-heading"><div><p className="eyebrow">PRODUCT MOMENTUM</p><h2>What’s gaining ground?</h2><p>New active subscriptions by contract start date · last 30 days versus the prior 30 days</p></div><span>As of {shortDate(trends.as_of)}</span></div>
+        <div className="catalog-trends-columns">
+          <div><h3><span className="trend-indicator trend-up">↗</span> Fastest growing</h3>{growing.length ? growing.map((item) => <div className="catalog-trend-row" key={item.product_id}><span>{item.name}</span><strong className="trend-up">+{item.delta}</strong><small>{item.recent_count} vs {item.previous_count}</small></div>) : <p className="catalog-trends-empty">No growth recorded in this window.</p>}</div>
+          <div><h3><span className="trend-indicator trend-down">↘</span> Slowing down</h3>{slowing.length ? slowing.map((item) => <div className="catalog-trend-row" key={item.product_id}><span>{item.name}</span><strong className="trend-down">{item.delta}</strong><small>{item.recent_count} vs {item.previous_count}</small></div>) : <p className="catalog-trends-empty">No slowdown recorded in this window.</p>}</div>
+        </div>
+      </section>}
       <section className="content-card list-card">
         <div className="list-toolbar"><div><h2>Products & add-ons</h2><span>Services and one-time items customers can add</span></div><span className="select-chip">{products.length} products</span></div>
-        {products.length ? <div className={`catalog-grid ${products.length === 1 ? "catalog-grid-single" : ""}`}>{products.map((product, index) => <article className="catalog-item" key={product.id}>
+        {products.length ? <div className={`catalog-grid ${products.length === 1 ? "catalog-grid-single" : ""}`}>{products.map((product, index) => { const trend = trendById.get(product.id); return <article className="catalog-item" key={product.id}>
           <div className="catalog-item-header"><span className={`product-icon ${["lavender", "mint", "peach"][index % 3]}`}><Icon name="box" size={20} /></span><Status tone={product.active ? "active" : "expired"}>{product.active ? "Active" : "Inactive"}</Status></div>
           <div className="catalog-main"><h3>{product.name}</h3><p>{product.notes || (product.variants?.length ? "Available with your choice of variant." : "Ready to add to a subscription.")}</p></div>
           {product.variants?.length > 0 && <div className="catalog-variant-list">{product.variants.map((variant) => <span key={variant.id}>{variant.name}<strong>+{money(variant.price_delta_paise)}</strong></span>)}</div>}
+          {trend && <div className="catalog-product-trend"><div><span>New subscriptions · 9 weeks</span><strong className={`trend-${trend.pace}`}>{trend.delta > 0 ? "+" : ""}{trend.delta} <small>vs prior 30 days</small></strong></div><ProductSparkline values={trend.weekly_counts} pace={trend.pace} /><small>{trend.recent_count} new in 30 days</small></div>}
           <div className="catalog-item-footer"><span>{product.type}{canManage && <button className="catalog-inline-action" onClick={() => onCreateExtra("variant")}>+ Add variant</button>}</span><div><small>Base price</small><strong>{money(product.sale_price_paise)}</strong></div></div>
-        </article>)}</div> : <div className="table-empty"><span className="empty-check"><Icon name="box" /></span><div><strong>No products yet</strong><small>Add a product to build your catalog.</small></div></div>}
+        </article>; })}</div> : <div className="table-empty"><span className="empty-check"><Icon name="box" /></span><div><strong>No products yet</strong><small>Add a product to build your catalog.</small></div></div>}
       </section>
       <section className="content-card list-card plans-card">
         <div className="list-toolbar"><div><h2>Subscription plans</h2><span>Recurring pricing your customers can count on</span></div>{canManage && <Button onClick={onCreatePlan} icon="plus">Add plan</Button>}</div>
@@ -916,6 +935,7 @@ function App() {
   const [invoices, setInvoices] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [products, setProducts] = useState([]);
+  const [productTrends, setProductTrends] = useState(null);
   const [plans, setPlans] = useState([]);
   const [taxes, setTaxes] = useState([]);
   const [discounts, setDiscounts] = useState([]);
@@ -975,6 +995,7 @@ function App() {
         apiList("/api/discounts"),
         apiList("/api/templates"),
         apiList("/api/customers"),
+        apiRequest("/api/analytics/products"),
       ]),
     ];
     const results = await Promise.allSettled(requests);
@@ -991,6 +1012,7 @@ function App() {
     const discountsResult = customerMode ? null : results[7];
     const templatesResult = customerMode ? null : results[8];
     const customersResult = customerMode ? null : results[9];
+    const trendsResult = customerMode ? null : results[10];
     const productsData = productsResult?.status === "fulfilled" ? productsResult.value : [];
     const plansData = plansResult?.status === "fulfilled" ? plansResult.value : [];
     const normalizedSubs = subscriptionData.map((item) => normalizeSubscription(item, plansData, productsData, invoiceData, user));
@@ -998,6 +1020,7 @@ function App() {
     setInvoices(invoiceData.map((item) => normalizeInvoice(item, normalizedSubs)));
     if (customerMode) {
       setProducts([]);
+      setProductTrends(null);
       setPlans([]);
       setTaxes([]);
       setDiscounts([]);
@@ -1007,6 +1030,7 @@ function App() {
       setPreview(null);
     } else {
       setProducts(productsData);
+      setProductTrends(trendsResult?.status === "fulfilled" ? trendsResult.value : null);
       setPlans(plansData);
       setTaxes(taxesResult?.status === "fulfilled" ? taxesResult.value : []);
       setDiscounts(discountsResult?.status === "fulfilled" ? discountsResult.value : []);
@@ -1016,7 +1040,7 @@ function App() {
       setPreview(previewResult?.status === "fulfilled" ? previewResult.value : null);
     }
 
-    const labels = ["subscriptions", "invoices", ...(customerMode ? [] : ["products", "plans", "dashboard", "billing preview", "taxes", "discounts", "templates", "customers"])];
+    const labels = ["subscriptions", "invoices", ...(customerMode ? [] : ["products", "plans", "dashboard", "billing preview", "taxes", "discounts", "templates", "customers", "product trends"])];
     const failures = {};
     results.forEach((result, index) => {
       if (result.status === "rejected") failures[labels[index]] = result.reason.message;
@@ -1424,7 +1448,7 @@ function App() {
             page === "subscriptions" ? <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} /> :
             page === "quotations" ? <Quotations subscriptions={subscriptions} customers={customers} plans={plans} products={products} onCreate={() => setEditor("quotation")} onAction={(id, action) => transitionSubscription(id, action, true)} busy={actionBusy} /> :
             page === "invoices" ? <Invoices invoices={filteredInvoices} canManage={user.role === "admin" || user.role === "staff"} busy={actionBusy} onConfirm={confirmInvoice} onPayment={openPayment} onAction={performInvoiceAction} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
-            page === "catalog" ? <Catalog products={products} plans={plans} taxes={taxes} discounts={discounts} templates={templates} subscriptions={subscriptions} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} onCreateExtra={(type) => { setOperationError(""); setEditor(type); }} /> :
+            page === "catalog" ? <Catalog products={products} plans={plans} taxes={taxes} discounts={discounts} templates={templates} subscriptions={subscriptions} trends={productTrends} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} onCreateExtra={(type) => { setOperationError(""); setEditor(type); }} /> :
             user.role === "admin" ? <Customers customers={customers} invoices={invoices} canAdd onAdd={() => setEditor("customer")} onCustomer={() => showNotice("Choose a customer record to review their billing data.")} /> :
             <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} />}
         </main>
