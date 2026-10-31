@@ -14,16 +14,13 @@
 
 ## Next
 
-- GSK includes `path("", include("aliar.urls"))` in root URLs and connects `aliar.services.create_for_candidate` inside `gsk/integration.py`. Production settings already register ALIAR and the real YASCN User.
-- GSK's `invoice_exists` must include cancelled revisions. ALIAR owns discount usage and cursor writes; do not apply them twice in the adapter.
-- GDM connects the in-memory UI to these APIs, restricts payment recording to staff/admin, and builds the individual invoice print view from `snapshot.lines`.
-- Repeat the full UI walkthrough after production integration. The backend test adapter is a handoff example, not a claim that root billing wiring is complete.
+- GDM connects its in-memory UI to the production APIs, restricts payment recording to staff/admin, and builds the individual invoice print view from `snapshot.lines`.
+- Repeat the full browser walkthrough after GDM integration, checking that balances agree after refresh and that a second billing run creates no invoice.
 
 ## Blocked / remaining shared work
 
-- `gsk/integration.py` still raises `IntegrationPending`; production root URLs do not yet include ALIAR. Production billing remains 503 until GSK connects these apps. Those GSK-owned files were not changed.
-- GDM's newest UI still uses mock/local state. Browser persistence, API-backed dashboard/payment agreement, and individual invoice printing remain GDM/GSK tasks.
-- CLI authentication in this execution session reports the saved Aliadnan33786 GitHub token as invalid. A push will be attempted after committing; publication must be verified before claiming success.
+- GSK's production repository and root URL wiring are complete. The unpatched backend API works and ALIAR's post-integration regression now covers the finance actions.
+- GDM's UI still uses mock/local state. Browser persistence, API-backed dashboard/payment agreement, and individual invoice printing remain GDM/GSK tasks.
 
 ## Invoice/API contract changes
 
@@ -39,7 +36,9 @@
 ## Verification
 
 - Phase 1 foundation: fresh migrations, Django checks, manually created invoice receiving partial payments, customer ownership, and unique active-period checks passed.
-- Final combined gate after syncing YASCN's latest billing handoff (`d042a31`): `aliar/.venv/Scripts/python.exe manage.py test aliar.tests yascn.tests gsk.tests --settings=aliar.test_settings --verbosity 1`: **76 tests passed** against real models on a fresh migrated database.
+- Original combined gate after syncing YASCN's billing handoff (`d042a31`): 76 tests passed on a fresh migrated database.
+- After GSK production integration (`554e697`) and YASCN lifecycle/password-reset delivery (`7003047`), `aliar/.venv/Scripts/python.exe manage.py test aliar.tests yascn.tests gsk.tests --verbosity 1`: **109 tests passed** against production settings and routes on a fresh database, including the new post-integration ALIAR regression.
+- New post-integration finance regression: `aliar/.venv/Scripts/python.exe manage.py test aliar.tests.test_production_phase2 --verbosity 1`: passed, covering actual billing → cancel → no duplicate → reissue → two partial payments → filtered and overdue reporting → customer visibility.
 - `manage.py migrate --noinput --settings=aliar.test_settings`: all migrations applied to a fresh in-memory database, including YASCN and ALIAR initial migrations.
 - `manage.py check` with production settings: passed, zero issues.
 - `manage.py makemigrations --check --dry-run` with production settings: passed, no changes detected.

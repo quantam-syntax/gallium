@@ -5,12 +5,12 @@ All implementation is inside `aliar/`. `CONTRACT.md` remains authoritative.
 ## Integration for GSK
 
 1. YASCN's real User, Subscription, SubscriptionLine, Plan, and Discount are now present and verified. `gsk.settings` already lists `aliar`; no registration change is needed there. ALIAR uses `settings.AUTH_USER_MODEL` and a real foreign key to `yascn.Subscription`.
-2. Include `path("", include("aliar.urls"))` in `gsk/urls.py`. This module owns the full `/api/...` paths, without trailing slashes.
-3. In the billing repository, implement creation with `from aliar.services import create_for_candidate`, then `return create_for_candidate(candidate, period, snapshot)`. The candidate must expose the real subscription's integer `id`. This helper translates finance validation errors to the `ValueError` handled by GSK's run loop.
-4. Implement `invoice_exists` with `Invoice.objects.filter(subscription_id=subscription_id, period_start=period_start).exists()`. Include cancelled revisions. ALIAR atomically rechecks, saves a draft snapshot, increments applied discount counters, and advances `next_bill_date`. It returns `{id, number}` or `None`. Do not duplicate discount/cursor writes in the adapter. The lower-level interface is `create_period_if_missing(subscription, period, snapshot, issued_on=None)`.
+2. GSK has mounted `aliar.urls` in the production `gsk/urls.py`. This module owns the full `/api/...` paths, without trailing slashes.
+3. GSK's production repository now calls `aliar.services.create_for_candidate(candidate, period, snapshot)`. The candidate exposes the subscription's integer `id`. The helper translates finance validation errors to the `ValueError` handled by GSK's run loop.
+4. GSK's `invoice_exists` includes cancelled revisions. ALIAR atomically rechecks, saves a draft snapshot, increments applied discount counters, and advances `next_bill_date`. It returns `{id, number}` or `None`. The lower-level interface is `create_period_if_missing(subscription, period, snapshot, issued_on=None)`.
 5. `aliar/migrations/0001_initial.py` depends on `yascn.0001_initial` and the swappable User. This dependency has been checked against the delivered models and applied on a fresh database. Run normal demo migrations with `gsk.settings`; never use the in-memory test settings for a persistent server.
 
-GSK still owns the pending production repository in `gsk/integration.py` and the root URL change. The complete repository can delegate `due_candidates` to `yascn.billing.due_candidates`, `invoice_exists` to the query above, and creation to `aliar.services.create_for_candidate`. `aliar/tests/test_phase1.py` uses exactly that bridge to exercise the real YASCN adapter, GSK pricing/orchestration, and ALIAR persistence. Only repository selection is patched in the test. No other owner's code is changed by this delivery.
+GSK's production repository delegates `due_candidates` to `yascn.billing.due_candidates`, checks all invoice revisions, and calls ALIAR's creation service. `aliar/tests/test_phase1.py` covers the original foundation with a test adapter. `aliar/tests/test_production_phase2.py` exercises the unpatched production routes and repository through cancellation, reissue, payments, date filters, overdue reporting, and customer access. The broader production smoke test is in `gsk/tests/test_production_integration.py`.
 
 Reporting expects `Subscription.customer_id`, `plan`, `status`, `payment_terms_days`, `next_bill_date`; `Plan.base_price_paise`, `frequency`; `SubscriptionLine.subscription_id`, `active`, `quantity`, `unit_price_paise`; and `Discount.active`, `usage_limit`, `used_count`. These match the shared contract. Reporting calculates MRR using GSK's frequency ratios, with per-subscription half-up rounding in SQL. Line prices already include variant surcharges. No pricing engine is duplicated.
 
@@ -34,7 +34,7 @@ From the repository root (the development environment is ignored by Git):
 
 ```powershell
 aliar/.venv/Scripts/python.exe manage.py test aliar.tests --settings=aliar.test_settings
-aliar/.venv/Scripts/python.exe manage.py test aliar.tests yascn.tests gsk.tests --settings=aliar.test_settings
+aliar/.venv/Scripts/python.exe manage.py test aliar.tests yascn.tests gsk.tests
 aliar/.venv/Scripts/python.exe manage.py migrate --noinput --settings=aliar.test_settings
 aliar/.venv/Scripts/python.exe manage.py check
 aliar/.venv/Scripts/python.exe manage.py makemigrations --check --dry-run
