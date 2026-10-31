@@ -2,6 +2,20 @@
 
 Subscription billing demo built by four owners. Read [CONTRACT.md](CONTRACT.md) for shared models and API shapes; the individual handoff files describe each owner's work. GSK owns the Django project and billing engine, YASCN owns identity/catalog/subscriptions, ALIAR owns invoices/payments/reporting, and GDM owns React UI.
 
+## Sync after the author-name correction
+
+On 31 October, `main` history was rewritten solely to correct GDM's frontend commit author and committer name from **AKASH S KISHOR** to **Gauthami**. The GitHub account and email stayed `vgauthami007-wq` / `vgauthami007@gmail.com`; file contents did not change. The old commit `e2574ba` is now `f58b18f`. A normal `git pull` from a clone of the old history may report divergent branches.
+
+First save or commit any uncommitted work. In a clone still on the old `main`, preserve the old branch and create a fresh local `main` from the remote:
+
+```bash
+git fetch origin
+git branch -m main main-before-gauthami-fix
+git switch -c main --track origin/main
+```
+
+The old branch is retained locally, including any unpushed commits. Ask GSK to help replay those commits onto the new `main` before pushing; do not force-push the old history. New clones need no special action. Gauthami should run `git config user.name "Gauthami"` in her own clone so future commits display the correct name.
+
 ## GSK setup
 
 ```bash

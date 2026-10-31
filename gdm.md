@@ -2,6 +2,8 @@
 
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for routes, statuses, money units, and response fields; tell GSK before changing an interface.
 
+**Git sync:** Your frontend commit now displays **Gauthami** as author and committer. `main` history changed for this correction; follow the [README sync steps](README.md#sync-after-the-author-name-correction) before pushing from an older clone. Set `git config user.name "Gauthami"` locally for future commits.
+
 ## What we are building
 
 Brightloop is a subscription software company currently tracking customers, renewals, invoices, payments, and revenue by hand. We are building one local web app where an admin configures products and plans, staff manage quotations and billing, and customers manage their own subscriptions and view invoices. The stack is Django REST Framework, SQLite, and React/Vite; this is a working hackathon demo, not a collection of disconnected screens.
