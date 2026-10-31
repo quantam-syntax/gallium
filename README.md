@@ -37,6 +37,9 @@ BRIGHTLOOP_DEMO_PASSWORD='ChooseYourOwn!123' .venv/bin/python manage.py seed_yas
 The seed creates `admin@brightloop.example`, `customer@brightloop.example`, and
 an active subscription due today. Existing account passwords and billing cursors
 are preserved, so use the password from the first seed on subsequent runs.
+After the first billing run, the seeded subscription is no longer due. Create a
+new quotation/subscription in the UI for another walkthrough; do not reset the
+cursor on a previously billed subscription.
 The admin can log in at `POST /api/auth/login`, preview at
 `GET /api/billing/preview`, run billing at `POST /api/billing/run`, and access
 invoices, payments, and dashboard data under `/api/invoices` and `/api/dashboard`.
@@ -56,13 +59,29 @@ Run the integrated checks with:
 cd gdm
 npm ci
 npm run build
+npm run dev
 ```
 
-The frontend has responsive admin, customer, and Billing Control Tower views,
-but currently uses local in-memory demo records. GDM's next handoff is to
-connect these screens to authenticated backend APIs and add an individual
-invoice print view from the saved invoice snapshot.
-The Vite development server proxies `/api` to Django on `127.0.0.1:8000`, so frontend calls can use relative API paths.
+Open the Vite URL and sign in as the seeded admin. The UI now uses authenticated
+backend APIs and restores the session after refresh. A useful walkthrough is:
+create a quotation from the seeded plan and Odoo product, confirm and activate
+the subscription, preview and run billing, confirm the draft invoice, record a
+partial payment, inspect the dashboard and saved-snapshot invoice print view,
+refresh, then run billing again to show zero duplicates. Sign in as the seeded
+customer to see only their subscriptions and invoices. Run
+`.venv/bin/python manage.py maintain_subscriptions` before expiry-sensitive
+reporting; it catches up old active periods and finalizes expired/auto-close
+contracts. The Vite server proxies `/api` to Django on `127.0.0.1:8000`.
+
+The reset-password and customer add-on/quantity screens have not yet been
+connected in React. Their backend routes and payloads are documented in
+`yascn/LIFECYCLE.md` and `CONTRACT.md`.
+
+The local performance check used a temporary database with 1,003 subscriptions
+and 1,004 invoices. Headless Chromium reached overview, subscriptions, and
+invoices at 0.73 s, 1.24 s, and 1.69 s from navigation start, respectively.
+This verifies the two-second target in the local demo environment; deployed
+latency should be measured separately.
 
 YASCN's custom User and ALIAR's finance app are installed, routed, and connected
 through GSK's production billing repository. The app is intentionally not

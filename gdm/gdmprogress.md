@@ -16,12 +16,17 @@
 - Added a print view that renders each invoice from its saved `snapshot`.
 - Prevented stale in-flight requests from populating state after a later refresh
   or sign-out.
+- GSK's live browser walkthrough found that draft invoices had no Confirm
+  action, so the invoice table now offers Confirm for drafts and Record payment
+  only for confirmed invoices. The real admin/customer path through quotation,
+  billing, payment, refresh, print preview, and a duplicate-free run passed.
 
 ## Integration gaps
 
-- The current root URL configuration registers YASCN and billing routes, but
-  does not yet register ALIAR invoice, payment, or dashboard URLs. The UI
-  reports those endpoint failures explicitly rather than substituting demo data.
+- GSK now registers ALIAR routes; the core API-backed browser path works.
+- Password-reset and customer add-on/quantity screens are still pending after
+  YASCN's Phase 2 API delivery. Invoice send/cancel/reissue controls are also
+  not yet exposed in the staff UI.
 - There is no customer-directory API route yet. The staff customer list is
   derived from invoices and subscriptions; accounts created in the current
   session are additionally available for quotation creation.
@@ -29,5 +34,10 @@
 ## Verification
 
 - `npm run build` in `gdm/`: passed with Vite 6.4.5.
-- End-to-end API and browser validation remains pending until the required
-  backend routes are registered and available.
+- GSK completed the live browser walkthrough, then verified the new Confirm
+  button against a real draft invoice: it changed to confirmed and exposed
+  Record payment. `npm run build` passed after the change.
+- With temporary demo data containing 1,003 subscriptions and 1,004 invoices,
+  local headless Chromium displayed the overview at 733 ms, subscriptions at
+  1,237 ms, and invoices at 1,687 ms from navigation start. The demo database
+  was restored afterward; deployment latency remains environment dependent.

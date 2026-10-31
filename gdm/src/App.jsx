@@ -641,7 +641,7 @@ function Quotations({ subscriptions, customers, plans, products, onCreate }) {
   );
 }
 
-function Invoices({ invoices, onPayment, onPrint, onInvoice }) {
+function Invoices({ invoices, onConfirm, onPayment, onPrint, onInvoice }) {
   return (
     <>
       <PageHeader eyebrow="BILLING & PAYMENTS" title="Invoices" subtitle="Every invoice, payment, and outstanding balance in one place." action={<Button icon="file" onClick={onPrint}>Print</Button>} />
@@ -659,7 +659,7 @@ function Invoices({ invoices, onPayment, onPrint, onInvoice }) {
             <td>{invoice.customer_name}</td><td>{shortDate(invoice.issued_on)}</td><td>{shortDate(invoice.due_on)}</td>
             <td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} due` : "Paid in full"}</small></td>
             <td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.is_overdue ? "overdue" : "confirmed"}>{invoice.balance_paise === 0 ? "Paid" : invoice.is_overdue ? "Overdue" : invoice.paid_paise ? "Partial" : invoice.status}</Status></td>
-            <td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View / print</button>{invoice.balance_paise > 0 && <button className="table-action-link" onClick={() => onPayment(invoice)}>Record payment</button>}</td>
+            <td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View / print</button>{invoice.status === "draft" && <button className="table-action-link" onClick={() => onConfirm(invoice)}>Confirm</button>}{invoice.status === "confirmed" && invoice.balance_paise > 0 && <button className="table-action-link" onClick={() => onPayment(invoice)}>Record payment</button>}</td>
           </tr>)}</tbody>
         </table></div> : <div className="table-empty"><span className="empty-check"><Icon name="search" /></span><div><strong>No invoices found</strong><small>Try adjusting your search.</small></div></div>}
       </section>
@@ -1036,6 +1036,13 @@ function App() {
     if (result) setPaymentInvoice(null);
   }
 
+  async function confirmInvoice(invoice) {
+    await perform(
+      () => apiRequest(`/api/invoices/${invoice.id}/confirm`, { method: "POST", body: {} }),
+      () => `${invoice.number} confirmed and ready for payment.`,
+    );
+  }
+
   async function transitionSubscription(id, action) {
     const result = await perform(
       () => apiRequest(`/api/subscriptions/${id}/transition`, { method: "POST", body: { action } }),
@@ -1193,7 +1200,7 @@ function App() {
             page === "overview" ? <Overview preview={preview} dashboard={dashboard} invoices={invoices} subscriptions={subscriptions} runResult={runResult} onRun={runBilling} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onNavigate={navigate} loading={dataLoading} /> :
             page === "subscriptions" ? <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} /> :
             page === "quotations" ? <Quotations subscriptions={subscriptions} customers={customers} plans={plans} products={products} onCreate={() => setEditor("quotation")} /> :
-            page === "invoices" ? <Invoices invoices={filteredInvoices} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
+            page === "invoices" ? <Invoices invoices={filteredInvoices} onConfirm={confirmInvoice} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
             page === "catalog" ? <Catalog products={products} plans={plans} subscriptions={subscriptions} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} /> :
             user.role === "admin" ? <Customers customers={customers} invoices={invoices} canAdd onAdd={() => setEditor("customer")} onCustomer={() => showNotice("Choose a customer record to review their billing data.")} /> :
             <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} />}

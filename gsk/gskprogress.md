@@ -22,25 +22,32 @@
   payment, reports ₹1,340.80 outstanding, and creates nothing on a second run.
 - Added a production-settings regression test covering the same path and
   customer access controls. The combined suite now passes 77 tests.
+- Applied YASCN migration `0002` locally and ran the live browser flow with
+  admin login, quotation creation, confirmation/activation, ₹1,840.80 preview,
+  billing, saved-snapshot print view, ₹500 payment, refresh, second no-op run,
+  and customer portal. Added a staff Confirm action for draft invoices discovered
+  during the walkthrough; payment is now offered only after confirmation.
+- Updated the shared contract for reset/lifecycle/add-on routes and ran
+  `maintain_subscriptions` locally (zero contracts expired).
 
 ## Next
 
-- Hand Gauthami the live API and seeded demo so she can replace local UI state
-  with authenticated requests and a saved-snapshot invoice print view.
-- Let Yazeen begin password reset and the deferred lifecycle flows now that
-  the integrated backend gate passes. Ali owns any finance defects found.
-- Rehearse the full browser path after GDM connects the API; prepare the final
-  demo and delivery once that path works after refresh.
+- Ask Gauthami to connect reset-password and customer add-on/quantity screens
+  to Yazeen's completed APIs, and finish any invoice send/cancel/reissue UI.
+- Rehearse the browser flow with a newly due subscription and capture the final
+  demo/video. Keep the seeded database intact; never rewind a billed cursor.
+- Rehearse the full browser story once more on the final demo environment and
+  record the video/submission. Keep the confirmed local demo records intact.
 
 ## Blocked
 
-- GDM's Billing Control Tower and portal still hold data in React memory.
-  Browser authentication, API reads/writes, refresh persistence, and invoice
-  printing remain the final integration gap.
+- Core staff billing and customer portal paths use the API and pass a live
+  browser walkthrough. Reset/add-on screens remain pending with Gauthami.
 
 ## Contract changes
 
-- None; implementation follows `CONTRACT.md`.
+- Documented YASCN's already implemented reset, lifecycle, and add-on routes;
+  no backend wire shape changed in GSK.
 
 ## Verification
 
@@ -59,3 +66,18 @@
   run created one invoice, second created none, and customer finance access was
   restricted.
 - `cd gdm && npm run build`: passed after the visual review.
+- Latest combined backend suite: 109 tests passed; production migration and
+  Django checks passed. Live browser flow persisted payment after refresh and
+  created zero invoices on the second run.
+- With 1,003 invoices in a temporary local benchmark, dashboard API requests
+  took about 4 ms after warmup, a 25-row invoice page about 4 ms, and all 41
+  invoice pages about 186 ms in the Django test client.
+- A temporary database with 1,003 subscriptions and 1,004 invoices loaded the
+  authenticated browser overview in 733 ms, displayed the subscription table
+  in 1,237 ms, and displayed the invoice table in 1,687 ms total from navigation
+  start in local headless Chromium. No API errors appeared. The original demo
+  database was restored after both benchmarks; production latency may differ.
+- A focused live browser check confirmed a real draft invoice through the new
+  UI button; the row changed to confirmed and then offered Record payment.
+- Latest `npm run build`: passed after the invoice action change. Latest full
+  production test suite: 109 passed; system and migration checks passed.

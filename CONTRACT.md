@@ -15,7 +15,7 @@ Django REST Framework + SQLite backend, React/Vite frontend. `gsk/` owns project
 | YASCN | Plan | `id`, `name`, `base_price_paise`, optional `tax_id`, `frequency` (`daily`, `weekly`, `monthly`, `yearly`), `minimum_quantity`, `available_from`, `available_to`, `auto_close`, `allow_pause`, `allow_renew`, `allow_cancel`. |
 | YASCN | Tax, Discount | Tax: `id`, `name`, `rate_bps`, `active`. Discount: `id`, `name`, `kind` (`fixed`, `percent`), `value`, `scope` (`product`, `subscription`), optional `product_id`, `min_purchase_paise`, `min_quantity`, `starts_on`, `ends_on`, optional `usage_limit`, `used_count`, `active`. |
 | YASCN | QuotationTemplate, TemplateLine | Template: `id`, `name`, `plan_id`, `valid_days`. Line: `product_id`, optional `variant_id`, `quantity`, `unit_price_paise`. |
-| YASCN | Subscription, SubscriptionLine | Subscription: `id`, unique `number`, `customer_id`, `plan_id`, `status`, `start_date`, exclusive `expiry_date`, optional `quote_expires_at`, `payment_terms_days`, `next_bill_date`, optional assigned `subscription_discount_id`. Line: `product_id`, optional `variant_id`, `quantity`, `unit_price_paise`, optional `tax_id`, `active`. |
+| YASCN | Subscription, SubscriptionLine | Subscription: `id`, unique `number`, `customer_id`, `plan_id`, `status`, `start_date`, exclusive `expiry_date`, optional `quote_expires_at`, `payment_terms_days`, `next_bill_date`, optional assigned `subscription_discount_id`; internal nullable `activated_at` distinguishes previously active contracts from quotations. Line: `product_id`, optional `variant_id`, `quantity`, `unit_price_paise`, optional `tax_id`, `active`. |
 | ALIAR | Invoice | `id`, unique `number`, `subscription_id`, `customer_id`, `period_start`, exclusive `period_end`, `revision`, `issued_on`, `due_on`, `status`, `subtotal_paise`, `discount_paise`, `tax_paise`, `total_paise`, immutable `snapshot`, optional `sent_at`. |
 | ALIAR | Payment | `id`, `invoice_id`, `method`, `amount_paise`, `paid_on`, `note`, `created_by_id`. |
 
@@ -23,13 +23,13 @@ For a fixed discount, `value` is paise; for a percentage discount, `value` is ba
 
 ## Statuses and API
 
-Subscription statuses: `draft`, `quotation`, `confirmed`, `active`, `paused`, `expired`, `closed`. Transition: `POST /api/subscriptions/{id}/transition` with `{ "action": "quote|confirm|activate|pause|resume|renew|close" }`. Responses include `permitted_actions`. Customer add-on and quantity edits affect the next invoice without proration.
+Subscription statuses: `draft`, `quotation`, `confirmed`, `active`, `paused`, `expired`, `closed`. Transition: `POST /api/subscriptions/{id}/transition` with `{ "action": "quote|confirm|activate|pause|resume|renew|close" }`; renewal may include an exclusive `expiry_date`. Responses include actor-specific `permitted_actions`. Pause/close/renew first catch up old billable periods; resume skips paused cycles and preserves the original schedule. Closed subscriptions are terminal. Customer add-on and quantity edits affect the next invoice without proration.
 
 Invoice statuses: `draft`, `confirmed`, `paid`, `cancelled`. `is_overdue` and partial-payment badges are derived, not stored statuses. Paid invoices cannot be cancelled without a refund workflow. Printable invoices use a frontend print view.
 
 All lists return `{ "results": [], "count": 0, "next": null, "previous": null }`. Non-field errors return `{ "detail": "..." }`; validation errors identify fields. Every mutation checks role and ownership on the backend.
 
-- YASCN: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, password-reset request/confirm, CRUD `/api/products`, `/api/plans`, `/api/taxes`, `/api/discounts`, `/api/templates`, `/api/subscriptions`. Login returns `{ "token": "...", "user": { "id": 1, "email": "...", "role": "admin", "full_name": "..." } }`. Subsequent calls send `Authorization: Token <token>`.
+- YASCN: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/password-reset/request`, `POST /api/auth/password-reset/confirm`, CRUD `/api/products`, `/api/plans`, `/api/taxes`, `/api/discounts`, `/api/templates`, `/api/subscriptions`, and `GET /api/subscriptions/{id}/addons`. Login returns `{ "token": "...", "user": { "id": 1, "email": "...", "role": "admin", "full_name": "..." } }`. Subsequent calls send `Authorization: Token <token>`.
 - GSK: `GET /api/billing/preview` and `POST /api/billing/run`, with optional `as_of` defaulting to today. Run is staff/admin only and never bills future periods.
 - ALIAR: list/detail `/api/invoices`, actions `/api/invoices/{id}/confirm`, `/cancel`, `/send`, `/reissue`, `GET/POST /api/invoices/{id}/payments`, and `GET /api/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
@@ -39,6 +39,10 @@ Preview returns `{ "as_of": "2026-10-31", "due_count": 1, "expected_total_paise"
 
 Run returns `{ "created_count": 1, "skipped_count": 0, "error_count": 0, "invoices": [{ "id": 25, "number": "INV-0025", "subscription_id": 12, "total_paise": 184080 }], "errors": [] }`. Payment POST body is `{ "method": "bank", "amount_paise": 50000, "paid_on": "2026-10-31", "note": "..." }`; response includes the payment and updated `paid_paise`/`balance_paise`.
 
+Password reset request accepts `{ "email": "customer@example.com" }` and returns the same 200 response regardless of account existence. The email links to `/reset-password?uid=...&token=...`; confirmation accepts `{ "uid": "...", "token": "...", "password": "NewPassword!123" }`. Success revokes existing auth tokens and requires login again. Invalid/expired links return 400. IP throttles are 5 requests/hour and 10 confirmations/hour. Local email is captured under `.email-outbox/`; SMTP settings are documented in `yascn/LIFECYCLE.md`.
+
+`GET /api/subscriptions/{id}/addons` lists owner-visible active products and variants without internal costs. A customer can `PATCH /api/subscriptions/{id}` with a complete active-line replacement, for example `{ "lines": [{ "product_id": 1, "variant_id": 1, "quantity": 2 }] }`; omitted lines are removed. The backend retains negotiated prices for existing lines and prices new add-ons using the current catalog. Details and error cases are in `yascn/LIFECYCLE.md`.
+
 ## Billing and gates
 
 GSK reads due subscriptions and advances `next_bill_date` transactionally after creating or deliberately skipping each cycle. Monthly/yearly cycles stay anchored to the subscription start day. Catch up missed active cycles; issue no invoice for paused or expired cycles. Preview and run call the same pricing function: plan fee plus active line effective prices (already including variant surcharges); choose the greater saving from eligible product discounts or the assigned whole-subscription discount; calculate tax on discounted amounts; snapshot the breakdown. Increment discount usage only when an invoice is created.
@@ -46,6 +50,8 @@ GSK reads due subscriptions and advances `next_bill_date` transactionally after 
 ALIAR enforces unique `(subscription, period_start, revision)` and at most one non-cancelled invoice per `(subscription, period_start)`. Automatic reruns skip any period already represented by an invoice, including cancelled ones; staff reissue creates the next revision. Payments must be positive, cannot exceed balance, and are accepted only on confirmed invoices; zero balance sets `paid`.
 
 Hour 4 gate: fresh migrations, Django checks, auth/ownership smoke tests, and React build. Hour 6 gate: product/variant → plan/template → active subscription → preview → one invoice → partial payment → dashboard; second billing run creates zero invoices and preview totals match saved invoice totals. Fix failures before optional AI work.
+
+Run `manage.py maintain_subscriptions` in the single-worker billing/demo sequence before expiry-sensitive reporting. It catches up active pre-expiry periods, then marks contracts `expired` or `closed` according to `plan.auto_close`. The command accepts a past/present `--as-of YYYY-MM-DD`; it does not bill paused periods and is safe to rerun.
 
 ## GSK Python adapter handoff
 
