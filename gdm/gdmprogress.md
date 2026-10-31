@@ -11,6 +11,10 @@
   results, partial-payment validation, and local subscription transitions.
 - Added empty states, search, responsive navigation, and print-friendly layout
   rules.
+- GSK visual review added a distinct billing control tower, stronger typography,
+  responsive cards, and a collection-health view. Dashboard totals and catalog
+  subscriber counts now come from the current demo records rather than unrelated
+  placeholder figures.
 
 ## Next
 
@@ -34,6 +38,10 @@
 
 - `npm run build`: passed with Vite 6.4.5; production bundle generated successfully.
 - GSK review added a local `/api` proxy to the Django server on `127.0.0.1:8000`; `npm run build` still passes.
+- GSK visual review checked Chromium screenshots at desktop and mobile widths;
+  `npm run build` passes after the design changes.
+- In the browser demo, the first billing run created one invoice and cleared the
+  preview; a second run created none.
 
 ## Commands for GSK
 

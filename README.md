@@ -16,6 +16,8 @@ git switch -c main --track origin/main
 
 The old branch is retained locally, including any unpushed commits. Ask GSK to help replay those commits onto the new `main` before pushing; do not force-push the old history. New clones need no special action. Gauthami should run `git config user.name "Gauthami"` in her own clone so future commits display the correct name.
 
+The later dashboard commit `97f4fa9` was also recorded as **AKASH S KISHOR** with Gauthami's email. Set both `user.name` and `user.email` locally and verify them before making another commit. This published commit remains in shared history; correcting it would require another coordinated rewrite.
+
 ## GSK setup
 
 ```bash

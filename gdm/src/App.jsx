@@ -102,9 +102,9 @@ const productRows = [
 ];
 
 const planRows = [
-  { name: "Growth monthly", cadence: "Billed monthly", price: 100000, subscribers: 12, state: "Available" },
-  { name: "Scale monthly", cadence: "Billed monthly", price: 90000, subscribers: 8, state: "Available" },
-  { name: "Starter monthly", cadence: "Billed monthly", price: 48500, subscribers: 26, state: "Available" },
+  { name: "Growth monthly", cadence: "Billed monthly", price: 100000, state: "Available" },
+  { name: "Scale monthly", cadence: "Billed monthly", price: 90000, state: "Available" },
+  { name: "Starter monthly", cadence: "Billed monthly", price: 48500, state: "Available" },
 ];
 
 const navItems = [
@@ -352,8 +352,8 @@ function App() {
             <span className="settings-symbol">⚙</span><span>Settings</span>
           </button>
           <button className="profile-button" onClick={() => setCustomerMode(true)}>
-            <span className="profile-avatar">AK</span>
-            <span className="profile-copy"><strong>Akash Kishor</strong><small>Admin</small></span>
+            <span className="profile-avatar">BA</span>
+            <span className="profile-copy"><strong>Brightloop Admin</strong><small>Workspace owner</small></span>
             <Icon name="more" size={17} />
           </button>
         </aside>
@@ -397,6 +397,7 @@ function App() {
             <Overview
               preview={preview}
               invoices={invoices}
+              subscriptions={subscriptions}
               runResult={runResult}
               onRun={runBilling}
               onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount("500"); }}
@@ -416,7 +417,7 @@ function App() {
               onPrint={() => window.print()}
             />
           ) : page === "catalog" ? (
-            <Catalog onCreate={() => showNotice("Catalog editor is ready for API integration.")} />
+            <Catalog subscriptions={subscriptions} onCreate={() => showNotice("Catalog editor is ready for API integration.")} />
           ) : (
             <Customers
               invoices={invoices}
@@ -448,28 +449,47 @@ function App() {
   );
 }
 
-function Overview({ preview, invoices, runResult, onRun, onPayment, onNavigate }) {
+function Overview({ preview, invoices, subscriptions, runResult, onRun, onPayment, onNavigate }) {
   const paid = invoices.reduce((sum, invoice) => sum + invoice.paid_paise, 0);
   const outstanding = invoices.reduce((sum, invoice) => sum + invoice.balance_paise, 0);
   const overdue = invoices.filter((invoice) => invoice.is_overdue && invoice.balance_paise > 0).length;
   const monthInvoiced = invoices.reduce((sum, invoice) => sum + invoice.total_paise, 0);
+  const activeSubscriptions = subscriptions.filter((subscription) => subscription.status === "active");
+  const grossMrr = activeSubscriptions.reduce((sum, subscription) => sum + subscription.mrr_paise, 0);
 
   return (
-    <>
-      <div className="welcome-strip">
-        <div><span className="welcome-sun">✳</span> Saturday, October 31, 2026 <span className="strip-divider">·</span> Good morning, Akash</div>
-        <span className="demo-label"><span /> DEMO WORKSPACE</span>
+    <div className="overview-page">
+      <div className="overview-hero">
+        <div className="hero-orbit" aria-hidden="true" />
+        <div className="welcome-strip">
+          <div><span className="welcome-sun">✳</span> {shortDate(preview.as_of)} <span className="strip-divider">·</span> Revenue operations</div>
+          <span className="demo-label"><span /> LIVE DEMO</span>
+        </div>
+        <div className="hero-body">
+          <div className="hero-copy">
+            <p className="hero-kicker"><span /> YOUR REVENUE, IN FOCUS</p>
+            <h1>Billing control <em>tower.</em></h1>
+            <p className="hero-description">See every renewal before it runs. Turn complex billing into a clear, confident next step.</p>
+            <div className="hero-actions">
+              <Button kind="primary" icon="repeat" onClick={onRun}>Run billing</Button>
+              <button className="hero-text-action" onClick={() => document.getElementById("preview-table")?.scrollIntoView({ behavior: "smooth", block: "center" })}>Explore this cycle <Icon name="chevron" size={16} /></button>
+            </div>
+          </div>
+          <div className="hero-insight" aria-label="Current billing cycle summary">
+            <div className="hero-insight-top"><span className="hero-live-dot" /> READY FOR THIS CYCLE <Icon name="spark" size={18} /></div>
+            <strong>{money(preview.expected_total_paise)}</strong>
+            <p>Expected from {preview.due_count} subscription{preview.due_count === 1 ? "" : "s"} due</p>
+            <div className="hero-insight-divider" />
+            <div className="hero-insight-bottom"><span>Billing status</span><b>{preview.exceptions.length ? `${preview.exceptions.length} need attention` : "All checks clear"}</b></div>
+          </div>
+        </div>
       </div>
-      <section className="page-heading heading-with-action">
-        <div><p className="eyebrow">YOUR BUSINESS AT A GLANCE</p><h1>Billing control tower</h1><p className="heading-subtitle">A clear view of what’s due, what’s paid, and what needs your attention.</p></div>
-        <Button kind="primary" icon="repeat" onClick={onRun}>Run billing</Button>
-      </section>
 
       <section className="metric-grid" aria-label="Business metrics">
-        <Metric label="Active subscriptions" value="46" delta="+4.3%" helper="vs. last month" icon="repeat" tone="blue" trend={[27, 38, 31, 46, 39, 57, 48, 69, 61, 77]} />
-        <Metric label="Monthly recurring revenue" value={money(8245000)} delta="+8.2%" helper="vs. last month" icon="arrow" tone="purple" trend={[25, 34, 30, 44, 49, 42, 64, 59, 76, 82]} />
-        <Metric label="Collected this month" value={money(paid || 6480000)} delta="+12.6%" helper="vs. last month" icon="check" tone="green" trend={[29, 34, 42, 36, 54, 49, 64, 59, 72, 81]} />
-        <Metric label="Outstanding balance" value={money(outstanding)} delta={`${overdue} overdue`} helper="needs attention" icon="clock" tone="amber" trend={[57, 48, 55, 39, 48, 32, 38, 28, 35, 25]} />
+        <Metric label="Active subscriptions" value={activeSubscriptions.length} detail="Billing right now" icon="repeat" tone="blue" />
+        <Metric label="Gross monthly recurring" value={money(grossMrr)} detail="Before tax & discounts" icon="arrow" tone="purple" />
+        <Metric label="Collected" value={money(paid)} detail="Recorded payments" icon="check" tone="green" />
+        <Metric label="Outstanding balance" value={money(outstanding)} detail={`${overdue} overdue invoice${overdue === 1 ? "" : "s"}`} icon="clock" tone="amber" />
       </section>
 
       <section className="tower-panel">
@@ -478,7 +498,7 @@ function Overview({ preview, invoices, runResult, onRun, onPayment, onNavigate }
             <span className="tower-icon"><Icon name="spark" size={19} /></span>
             <div><p className="eyebrow">THE BILLING ENGINE</p><h2>Upcoming billing run</h2><p>Preview recurring invoices before they go out.</p></div>
           </div>
-          <span className="date-chip"><Icon name="calendar" size={15} /> As of Oct 31, 2026 <span className="date-caret">⌄</span></span>
+          <span className="date-chip"><Icon name="calendar" size={15} /> As of {shortDate(preview.as_of)} <span className="date-caret">⌄</span></span>
         </div>
         <div className="tower-summary">
           <div><span>SUBSCRIPTIONS DUE</span><strong>{preview.due_count}</strong><small>ready for billing</small></div>
@@ -501,9 +521,9 @@ function Overview({ preview, invoices, runResult, onRun, onPayment, onNavigate }
 
       <section className="lower-grid">
         <div className="content-card revenue-card">
-          <div className="card-heading"><div><p className="eyebrow">REVENUE</p><h2>Cash flow</h2></div><button className="select-chip">Last 30 days <span>⌄</span></button></div>
-          <div className="revenue-totals"><div><span>Invoiced</span><strong>{money(monthInvoiced)}</strong></div><span className="revenue-divider" /><div><span>Collected</span><strong>{money(paid || 6480000)}</strong></div><div className="chart-legend"><span /><small>Revenue collected</small></div></div>
-          <RevenueChart />
+          <div className="card-heading"><div><p className="eyebrow">REVENUE</p><h2>Collection health</h2></div><span className="select-chip">Current demo ledger</span></div>
+          <div className="revenue-totals"><div><span>Invoiced</span><strong>{money(monthInvoiced)}</strong></div><span className="revenue-divider" /><div><span>Collected</span><strong>{money(paid)}</strong></div></div>
+          <RevenueChart invoiced={monthInvoiced} collected={paid} />
         </div>
         <div className="content-card attention-card">
           <div className="card-heading"><div><p className="eyebrow">FOLLOW UP</p><h2>Needs attention <span className="count-bubble">{overdue}</span></h2></div><button className="more-button" aria-label="More options"><Icon name="more" /></button></div>
@@ -521,24 +541,18 @@ function Overview({ preview, invoices, runResult, onRun, onPayment, onNavigate }
           <button className="attention-footer" onClick={() => onNavigate("invoices")}>See all invoices <Icon name="chevron" size={14} /></button>
         </div>
       </section>
-    </>
+    </div>
   );
 }
 
-function Metric({ label, value, delta, helper, icon, tone, trend }) {
+function Metric({ label, value, detail, icon, tone }) {
   return (
     <article className="metric-card">
       <div className="metric-top"><span>{label}</span><span className={`metric-icon metric-icon-${tone}`}><Icon name={icon} size={16} /></span></div>
       <div className="metric-value">{value}</div>
-      <div className="metric-bottom"><span className={`metric-delta ${tone === "amber" ? "delta-amber" : ""}`}>{delta}</span><span>{helper}</span><MiniTrend data={trend} tone={tone} /></div>
+      <div className="metric-detail"><span className={`metric-detail-dot metric-detail-${tone}`} />{detail}</div>
     </article>
   );
-}
-
-function MiniTrend({ data, tone }) {
-  return <svg className={`mini-trend trend-${tone}`} viewBox="0 0 90 28" aria-hidden="true" preserveAspectRatio="none">
-    <polyline points={data.map((point, index) => `${index * 10},${26 - point * 0.25}`).join(" ")} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>;
 }
 
 function PreviewTable({ items }) {
@@ -566,17 +580,17 @@ function PreviewTable({ items }) {
   );
 }
 
-function RevenueChart() {
+function RevenueChart({ invoiced, collected }) {
+  const percent = invoiced > 0 ? Math.min(100, Math.round((collected / invoiced) * 100)) : 0;
   return (
-    <div className="chart-wrap" aria-label="Revenue collected trend for the last 30 days">
-      <div className="chart-y-labels"><span>₹ 8L</span><span>₹ 6L</span><span>₹ 4L</span><span>₹ 2L</span><span>₹ 0</span></div>
-      <svg viewBox="0 0 600 145" preserveAspectRatio="none" className="revenue-chart" role="img" aria-label="Revenue trend rises throughout October">
-        <defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#5E73D8" stopOpacity=".22" /><stop offset="100%" stopColor="#5E73D8" stopOpacity="0" /></linearGradient></defs>
-        <path d="M0 118 C25 112 32 92 59 99 S100 103 120 79 S157 89 179 82 S216 69 238 76 S274 56 298 63 S335 66 358 48 S397 62 418 44 S453 39 478 43 S511 21 538 31 S572 10 600 15 V145 H0Z" fill="url(#chartFill)" />
-        <path d="M0 118 C25 112 32 92 59 99 S100 103 120 79 S157 89 179 82 S216 69 238 76 S274 56 298 63 S335 66 358 48 S397 62 418 44 S453 39 478 43 S511 21 538 31 S572 10 600 15" fill="none" stroke="#6678D8" strokeWidth="2.4" vectorEffect="non-scaling-stroke" />
-        {[20, 52, 84, 116].map((y) => <line key={y} x1="0" x2="600" y1={y} y2={y} stroke="#EDF0F6" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />)}
-      </svg>
-      <div className="chart-x-labels"><span>Oct 1</span><span>Oct 8</span><span>Oct 15</span><span>Oct 22</span><span>Oct 31</span></div>
+    <div className="collection-progress" aria-label={`${percent}% of invoiced amount collected`}>
+      <div className="collection-ring" style={{ "--collection-percent": `${percent}%` }}><div><strong>{percent}%</strong><span>collected</span></div></div>
+      <div className="collection-breakdown">
+        <p>Every rupee, accounted for.</p>
+        <div><span><i className="legend-dot collected-dot" />Collected</span><strong>{money(collected)}</strong></div>
+        <div><span><i className="legend-dot remaining-dot" />To collect</span><strong>{money(Math.max(0, invoiced - collected))}</strong></div>
+        <small>Based on invoices shown in this demo workspace.</small>
+      </div>
     </div>
   );
 }
@@ -656,7 +670,7 @@ function Invoices({ invoices, onPayment, onPrint }) {
   );
 }
 
-function Catalog({ onCreate }) {
+function Catalog({ subscriptions, onCreate }) {
   return (
     <>
       <PageHeader eyebrow="YOUR OFFERING" title="Products & plans" subtitle="Keep your catalog tidy and your subscription plans clear." action={<Button kind="primary" icon="plus" onClick={onCreate}>Add to catalog</Button>} />
@@ -670,7 +684,7 @@ function Catalog({ onCreate }) {
         <div className="list-toolbar"><div><h2>Subscription plans</h2><span>Recurring pricing your customers can count on</span></div><Button onClick={onCreate} icon="plus">Add plan</Button></div>
         <div className="table-scroll"><table className="data-table full-table">
           <thead><tr><th>PLAN</th><th>BILLING</th><th>BASE PRICE</th><th>SUBSCRIBERS</th><th>STATUS</th><th /></tr></thead>
-          <tbody>{planRows.map((plan) => <tr key={plan.name}><td><strong className="table-primary">{plan.name}</strong></td><td>{plan.cadence}</td><td><strong>{money(plan.price)}</strong></td><td>{plan.subscribers}</td><td><Status tone="active">{plan.state}</Status></td><td><button className="row-more" aria-label={`Edit ${plan.name}`}><Icon name="more" size={16} /></button></td></tr>)}</tbody>
+          <tbody>{planRows.map((plan) => <tr key={plan.name}><td><strong className="table-primary">{plan.name}</strong></td><td>{plan.cadence}</td><td><strong>{money(plan.price)}</strong></td><td>{subscriptions.filter((subscription) => subscription.plan === plan.name).length}</td><td><Status tone="active">{plan.state}</Status></td><td><button className="row-more" aria-label={`Edit ${plan.name}`}><Icon name="more" size={16} /></button></td></tr>)}</tbody>
         </table></div>
       </section>
     </>
@@ -700,7 +714,7 @@ function CustomerPortal({ subscriptions, invoices, onAction, onPay, onInvoice })
   const activeSubscription = subscriptions[0];
   return (
     <>
-      <div className="portal-welcome"><div className="portal-avatar">E</div><div><p className="eyebrow">WELCOME BACK</p><h1>Good morning, Example Shop</h1><p>Here’s your subscription at a glance.</p></div><span className="portal-tag"><span /> CUSTOMER PORTAL</span></div>
+      <div className="portal-welcome"><div className="portal-avatar">E</div><div><p className="eyebrow">WELCOME BACK</p><h1>Hello, Example Shop</h1><p>Here’s your subscription at a glance.</p></div><span className="portal-tag"><span /> PORTAL PREVIEW</span></div>
       {activeSubscription ? <>
         <section className="portal-subscription">
           <div className="portal-sub-header"><div><span className="eyebrow">YOUR SUBSCRIPTION</span><Status tone={activeSubscription.status}>{activeSubscription.status}</Status></div><button className="row-more" aria-label="Subscription options"><Icon name="more" /></button></div>
@@ -716,7 +730,7 @@ function CustomerPortal({ subscriptions, invoices, onAction, onPay, onInvoice })
           </table></div> : <div className="table-empty portal-empty"><span className="empty-check"><Icon name="receipt" /></span><div><strong>No invoices yet</strong><small>Your invoices will appear here after your next billing run.</small></div></div>}
         </section>
       </> : <div className="table-empty"><span className="empty-check"><Icon name="repeat" /></span><div><strong>No active subscriptions</strong><small>There are no subscriptions available for this account.</small></div></div>}
-      <footer className="portal-footer">Secure customer portal <span>·</span> Need help? <a href="mailto:hello@brightloop.in">Contact Brightloop</a></footer>
+      <footer className="portal-footer">Customer portal preview <span>·</span> Need help? <a href="mailto:hello@brightloop.in">Contact Brightloop</a></footer>
     </>
   );
 }

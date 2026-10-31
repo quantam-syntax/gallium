@@ -2,7 +2,7 @@
 
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for routes, statuses, money units, and response fields; tell GSK before changing an interface.
 
-**Git sync:** Your frontend commit now displays **Gauthami** as author and committer. `main` history changed for this correction; follow the [README sync steps](README.md#sync-after-the-author-name-correction) before pushing from an older clone. Set `git config user.name "Gauthami"` locally for future commits.
+**Git sync:** The earlier scaffold commit was corrected to **Gauthami**, but the newer dashboard commit `97f4fa9` again records **AKASH S KISHOR** with Gauthami's email. In your own clone, run `git config user.name "Gauthami"` and `git config user.email "vgauthami007@gmail.com"` before your next commit, then verify with `git log -1 --format='%an <%ae>'`. Follow the [README sync steps](README.md#sync-after-the-author-name-correction) if your clone still has the old history. Do not force-push a history rewrite over teammates' work.
 
 ## What we are building
 
