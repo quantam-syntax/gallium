@@ -69,3 +69,9 @@ tested both by Django's test runner and against a separate temporary on-disk DB.
   delivered changes are under `yascn/` only (dependencies installed in ignored
   `.venv/`).
 - `.venv/bin/python manage.py check`: blocked by the missing ALIAR app, as above.
+
+## GSK integration review
+
+- Corrected `due_subscriptions(as_of)` to include missed pre-expiry cycles even when the contract has now expired; GSK's period calculator stops at exclusive expiry.
+- Restricted catalog reads to staff/admin so customer accounts cannot read product cost prices or discount rules. Added a regression test.
+- Latest YASCN suite: **23 tests passed**. Shared URLs now include `yascn.urls`; ALIAR is still needed for the full Django app.

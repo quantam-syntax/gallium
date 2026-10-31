@@ -9,3 +9,4 @@ from .settings import *  # noqa: F401,F403
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app not in ("yascn", "aliar")]
 AUTH_USER_MODEL = "auth.User"
 DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
+ROOT_URLCONF = "gsk.test_urls"

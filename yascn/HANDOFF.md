@@ -61,7 +61,7 @@ All lists return `count`, `results`, `next`, `previous` with page size 25.
 | `POST /api/auth/register` | Public customer signup; authenticated admin can explicitly set staff/admin role. No public elevation. |
 | `POST /api/auth/login` | Email/password login; returns token and public user object. |
 | `GET /api/auth/me` | Current public user object for UI refresh. |
-| `/api/products`, `/api/plans`, `/api/taxes`, `/api/discounts`, `/api/templates` | List/detail to authenticated users; create/edit/delete admin only. |
+| `/api/products`, `/api/plans`, `/api/taxes`, `/api/discounts`, `/api/templates` | List/detail to staff/admin; create/edit/delete admin only. Customers do not receive internal cost prices or discount rules. |
 | `POST /api/products/{id}/variants` | Admin creates a variant. |
 | `PATCH/DELETE /api/products/{id}/variants/{variant_id}` | Admin edits/removes a variant belonging to that product. |
 | `/api/subscriptions` | Staff/admin manage drafts; customers can only read their own list/detail. |
@@ -140,7 +140,9 @@ subscriptions = due_subscriptions(as_of)
 ```
 
 This returns an ordered queryset of active subscriptions with
-`next_bill_date <= as_of < expiry_date`. Paused/expired/closed records and
+`next_bill_date <= as_of` and `next_bill_date < expiry_date`. This includes
+missed cycles when the contract expiry date has already passed; GSK's period
+calculator stops at the exclusive expiry date. Paused/expired/closed records and
 future cycles are excluded. Customer, plan tax, assigned discount, and line
 relations are loaded for the adapter. Billing is stopped at exclusive expiry;
 expired subscriptions await Phase 2 renewal. Never filter availability dates

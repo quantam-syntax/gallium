@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta
 
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -13,8 +14,9 @@ def expire_quotations(queryset):
 
 
 def due_subscriptions(as_of):
-    """ORM handoff for GSK; the billing adapter still owns cursor advancement."""
-    return (Subscription.objects.filter(status="active", next_bill_date__lte=as_of, expiry_date__gt=as_of)
+    """Include past due cycles even when the contract has since expired."""
+    return (Subscription.objects.filter(status="active", next_bill_date__lte=as_of,
+                                        next_bill_date__lt=F("expiry_date"))
             .select_related("customer", "plan__tax", "subscription_discount")
             .prefetch_related("lines__product", "lines__variant", "lines__tax")
             .order_by("next_bill_date", "pk"))

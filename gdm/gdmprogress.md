@@ -23,6 +23,7 @@
 ## Verification
 
 - `npm run build`: passed with Vite 6.4.5; production bundle generated successfully.
+- GSK review added a local `/api` proxy to the Django server on `127.0.0.1:8000`; `npm run build` still passes.
 
 ## Commands for GSK
 
