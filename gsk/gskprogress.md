@@ -1,5 +1,11 @@
 # GSK progress
 
+## Latest integration handoff
+
+- Added `python manage.py run_billing [--as-of YYYY-MM-DD]`, calling the same idempotent billing service as the Control Tower. Schedule billing before `maintain_subscriptions` so final periods can be invoiced.
+- Built and browser-verified the catalog admin forms with GDM's frontend. Updated each owner's root brief with current remaining work.
+- Next: final seeded browser rehearsal, any teammate integration fixes, and demo recording/submission.
+
 ## Done
 
 - Agreed shared model, route, and billing contract in `CONTRACT.md`.

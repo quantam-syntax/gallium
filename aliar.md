@@ -1,5 +1,11 @@
 # ALIAR — invoices, payments, and finance backend
 
+## Current handoff
+
+- Generated invoices, partial payments, outstanding balances, and dashboard reporting are integrated. The live browser story has confirmed the payment and refresh path.
+- Next: support Gauthami's invoice send/cancel/reissue controls and fix any API or permission defects in `aliar/`. Recheck cancellation/reissue, payment balance, ownership, and date-filter tests after changes; update `aliar/aliarprogress.md`.
+- GSK owns root integration and final demo validation; tell GSK before changing shared response shapes.
+
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for invoice fields, statuses, routes, response fields, and duplicate prevention; tell GSK before changing an interface.
 
 **Git sync:** `main` history changed to correct GDM's author name. Follow the [README sync steps](README.md#sync-after-the-author-name-correction) before pushing from an older clone; keep any unpushed work on the preserved branch until GSK helps replay it.

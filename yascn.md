@@ -1,5 +1,11 @@
 # YASCN — identity, catalog, and subscriptions backend
 
+## Current handoff
+
+- Core identity, catalog, quotation, subscription lifecycle, password reset, and next-cycle edit APIs are available. The new catalog forms exercise variant, tax, discount, and template creation through your routes.
+- Next: support Gauthami as she connects password reset and customer add-on/quantity screens. Resolve any API defects or permission gaps she finds in `yascn/`, and keep `yascn/yascnprogress.md` current. Recheck ownership and lifecycle tests after fixes.
+- GSK owns final integration and the demo; communicate any contract change before making it.
+
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for models, statuses, routes, response fields, and the billing cursor; tell GSK before changing an interface.
 
 **Git sync:** `main` history changed to correct GDM's author name. Follow the [README sync steps](README.md#sync-after-the-author-name-correction) before pushing from an older clone; keep any unpushed work on the preserved branch until GSK helps replay it.

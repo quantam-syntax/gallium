@@ -1,5 +1,11 @@
 # GDM — UI and customer experience
 
+## Current handoff
+
+- The catalog now has a more expressive responsive view, subtle motion with reduced-motion support, and working admin forms for variants, taxes, discounts, and quotation templates. Product/plan forms include tax and plan controls. Quotation creation can select a template and subscription discount. Keep your changes inside `gdm/` and update `gdm/gdmprogress.md`.
+- Next: add password-reset request/confirm screens, customer add-on and quantity editing for the next billing cycle, and staff invoice send/cancel/reissue controls using the documented API. Show success/error states and confirm customer role boundaries in the browser.
+- Preserve the current catalog and dashboard visual quality while extending these flows. Run `npm run build` and the complete seeded story after your changes. Let GSK integrate and push root changes.
+
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for routes, statuses, money units, and response fields; tell GSK before changing an interface.
 
 **Git sync:** The earlier scaffold commit was corrected to **Gauthami**, but the newer dashboard commit `97f4fa9` again records **AKASH S KISHOR** with Gauthami's email. In your own clone, run `git config user.name "Gauthami"` and `git config user.email "vgauthami007@gmail.com"` before your next commit, then verify with `git log -1 --format='%an <%ae>'`. Follow the [README sync steps](README.md#sync-after-the-author-name-correction) if your clone still has the old history. Do not force-push a history rewrite over teammates' work.

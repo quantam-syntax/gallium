@@ -1,5 +1,11 @@
 # GSK — team lead and billing engine
 
+## Current handoff
+
+- Billing preview/run, integration, and the live admin-to-payment path are working. `python manage.py run_billing` now invokes the same idempotent billing service; schedule it daily, then run `python manage.py maintain_subscriptions` after billing so expired final periods are not skipped.
+- Finish the final full-browser rehearsal and recording. Verify the seeded Odoo ₹560 variant, quotation/template, invoice, partial payment, customer portal, and finance totals in the demo environment. Keep integration and root files with GSK.
+- Gauthami should take the remaining UI screens: password reset, customer add-on/quantity changes, and staff invoice send/cancel/reissue. Coordinate against the existing API contract; request root integration changes from GSK.
+
 **Read [CONTRACT.md](CONTRACT.md) first.** It is the single source of truth for models, statuses, routes, response shapes, and billing rules. Update it before any shared interface changes; tell all three teammates when it changes.
 
 **Git sync:** `main` history changed to correct GDM's author name. Follow the [README sync steps](README.md#sync-after-the-author-name-correction) before pushing from an older clone; help teammates preserve and replay any unpushed work.

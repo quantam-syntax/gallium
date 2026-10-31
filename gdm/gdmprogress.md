@@ -1,5 +1,12 @@
 # GDM progress
 
+## Latest integration handoff
+
+- Added a responsive catalog summary and richer product/variant cards with subtle motion and reduced-motion support.
+- Admin forms now create variants, taxes, fixed/percentage discounts, and multi-line quotation templates through the live API. Product and plan forms expose tax and availability/permission settings. Quotation creation can use a saved template and assign a subscription discount.
+- Browser-verified variant, tax, discount, and template creation; removed the temporary verification records. `npm run build` passes.
+- Next for Gauthami: password reset, customer add-on/quantity edit, and invoice send/cancel/reissue screens. Validate each with backend role checks and a build. Keep UI changes in `gdm/` and ask GSK to integrate root changes.
+
 ## Done
 
 - Built the responsive Brightloop Control Tower, staff billing screens, and

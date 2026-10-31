@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Auth from "./Auth.jsx";
+import CatalogEditor from "./CatalogEditor.jsx";
 import InvoicePrint from "./InvoicePrint.jsx";
 import { apiList, apiRequest, clearToken, getToken, storeToken } from "./api.js";
 
@@ -667,15 +668,27 @@ function Invoices({ invoices, onConfirm, onPayment, onPrint, onInvoice }) {
   );
 }
 
-function Catalog({ products, plans, subscriptions, canManage, onCreateProduct, onCreatePlan }) {
+function Catalog({ products, plans, taxes, discounts, templates, subscriptions, canManage, onCreateProduct, onCreatePlan, onCreateExtra }) {
+  const variantCount = products.reduce((total, product) => total + (product.variants?.length || 0), 0);
   return (
     <>
       <PageHeader eyebrow="YOUR OFFERING" title="Products & plans" subtitle="Keep your catalog tidy and your subscription plans clear." action={canManage && <Button kind="primary" icon="plus" onClick={onCreateProduct}>Add product</Button>} />
+      <section className="catalog-spotlight" aria-label="Catalog summary">
+        <div className="catalog-spotlight-copy"><p className="catalog-spotlight-kicker"><span /> THE OFFERING</p><h2>Built to grow with every customer.</h2><p>One view of the products, variations, and recurring plans behind your subscriptions.</p></div>
+        <div className="catalog-spotlight-stats">
+          <div><strong>{products.length}</strong><span>Product{products.length === 1 ? "" : "s"}</span></div>
+          <div><strong>{variantCount}</strong><span>Variant{variantCount === 1 ? "" : "s"}</span></div>
+          <div><strong>{plans.length}</strong><span>Recurring plan{plans.length === 1 ? "" : "s"}</span></div>
+        </div>
+      </section>
       <section className="content-card list-card">
         <div className="list-toolbar"><div><h2>Products & add-ons</h2><span>Services and one-time items customers can add</span></div><span className="select-chip">{products.length} products</span></div>
-        {products.length ? <div className="catalog-grid">{products.map((product, index) => <article className="catalog-item" key={product.id}>
-          <span className={`product-icon ${["lavender", "mint", "peach"][index % 3]}`}>{product.type?.slice(0, 1).toUpperCase() || "P"}</span><div className="catalog-main"><div className="catalog-topline"><strong>{product.name}</strong><Status tone={product.active ? "active" : "expired"}>{product.active ? "Active" : "Inactive"}</Status></div><p>{product.variants?.length ? product.variants.map((variant) => variant.name).join(", ") : product.notes || "No variants"}</p><small>{product.type}</small></div><strong className="catalog-price">{money(product.sale_price_paise)}</strong>
-        </article>)}</div> : <div className="table-empty"><span className="empty-check"><Icon name="box" /></span><div><strong>No products yet</strong><small>Catalog items added through the API will appear here.</small></div></div>}
+        {products.length ? <div className={`catalog-grid ${products.length === 1 ? "catalog-grid-single" : ""}`}>{products.map((product, index) => <article className="catalog-item" key={product.id}>
+          <div className="catalog-item-header"><span className={`product-icon ${["lavender", "mint", "peach"][index % 3]}`}><Icon name="box" size={20} /></span><Status tone={product.active ? "active" : "expired"}>{product.active ? "Active" : "Inactive"}</Status></div>
+          <div className="catalog-main"><h3>{product.name}</h3><p>{product.notes || (product.variants?.length ? "Available with your choice of variant." : "Ready to add to a subscription.")}</p></div>
+          {product.variants?.length > 0 && <div className="catalog-variant-list">{product.variants.map((variant) => <span key={variant.id}>{variant.name}<strong>+{money(variant.price_delta_paise)}</strong></span>)}</div>}
+          <div className="catalog-item-footer"><span>{product.type}{canManage && <button className="catalog-inline-action" onClick={() => onCreateExtra("variant")}>+ Add variant</button>}</span><div><small>Base price</small><strong>{money(product.sale_price_paise)}</strong></div></div>
+        </article>)}</div> : <div className="table-empty"><span className="empty-check"><Icon name="box" /></span><div><strong>No products yet</strong><small>Add a product to build your catalog.</small></div></div>}
       </section>
       <section className="content-card list-card plans-card">
         <div className="list-toolbar"><div><h2>Subscription plans</h2><span>Recurring pricing your customers can count on</span></div>{canManage && <Button onClick={onCreatePlan} icon="plus">Add plan</Button>}</div>
@@ -683,6 +696,11 @@ function Catalog({ products, plans, subscriptions, canManage, onCreateProduct, o
           <thead><tr><th>PLAN</th><th>BILLING</th><th>BASE PRICE</th><th>SUBSCRIBERS</th><th>STATUS</th><th /></tr></thead>
           <tbody>{plans.map((plan) => <tr key={plan.id}><td><strong className="table-primary">{plan.name}</strong></td><td>Billed {plan.frequency}</td><td><strong>{money(plan.base_price_paise)}</strong></td><td>{subscriptions.filter((subscription) => subscription.plan_id === plan.id).length}</td><td><Status tone="active">Available</Status></td><td /></tr>)}</tbody>
         </table></div> : <div className="table-empty"><span className="empty-check"><Icon name="repeat" /></span><div><strong>No plans yet</strong><small>Create a plan to start a quotation.</small></div></div>}
+      </section>
+      <section className="catalog-rules-grid" aria-label="Catalog rules and templates">
+        <div className="content-card catalog-rule-card"><div className="catalog-rule-heading"><div><p className="eyebrow">PRICING</p><h2>Taxes</h2></div>{canManage && <button onClick={() => onCreateExtra("tax")}>+ Add tax</button>}</div><div className="catalog-rule-list">{taxes.length ? taxes.map((tax) => <div key={tax.id}><span><strong>{tax.name}</strong><small>{tax.active ? "Active" : "Inactive"}</small></span><b>{(tax.rate_bps / 100).toFixed(2).replace(/\.00$/, "")}%</b></div>) : <p>No tax rules yet.</p>}</div></div>
+        <div className="content-card catalog-rule-card"><div className="catalog-rule-heading"><div><p className="eyebrow">INCENTIVES</p><h2>Discounts</h2></div>{canManage && <button onClick={() => onCreateExtra("discount")}>+ Add rule</button>}</div><div className="catalog-rule-list">{discounts.length ? discounts.map((discount) => <div key={discount.id}><span><strong>{discount.name}</strong><small>{discount.scope === "product" ? "Product rule" : "Subscription rule"} · {discount.used_count}{discount.usage_limit ? ` / ${discount.usage_limit}` : ""} used</small></span><b>{discount.kind === "percent" ? `${(discount.value / 100).toFixed(2).replace(/\.00$/, "")}%` : money(discount.value)}</b></div>) : <p>No discounts yet.</p>}</div></div>
+        <div className="content-card catalog-rule-card"><div className="catalog-rule-heading"><div><p className="eyebrow">SALES</p><h2>Quote templates</h2></div>{canManage && <button onClick={() => onCreateExtra("template")}>+ Add template</button>}</div><div className="catalog-rule-list">{templates.length ? templates.map((template) => <div key={template.id}><span><strong>{template.name}</strong><small>{template.lines?.length || 0} line{template.lines?.length === 1 ? "" : "s"}</small></span><b>{template.valid_days} days</b></div>) : <p>No quotation templates yet.</p>}</div></div>
       </section>
     </>
   );
@@ -741,8 +759,9 @@ function SimpleMetric({ label, value, helper, icon }) {
   return <article className="simple-metric"><span className="metric-icon metric-icon-blue"><Icon name={icon} size={16} /></span><span className="simple-metric-label">{label}</span><strong>{value}</strong><small>{helper}</small></article>;
 }
 
-function DataEditor({ type, busy, error, customers, plans, products, onClose, onCreateProduct, onCreatePlan, onCreateQuotation, onRegisterCustomer }) {
+function DataEditor({ type, busy, error, customers, plans, products, taxes, discounts, templates, onClose, onCreateProduct, onCreatePlan, onCreateQuotation, onRegisterCustomer }) {
   const [selectedProductId, setSelectedProductId] = useState(String(products.find((product) => product.active)?.id || ""));
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [submitError, setSubmitError] = useState("");
   const activeProducts = products.filter((product) => product.active);
   const selectedProduct = activeProducts.find((product) => product.id === Number(selectedProductId));
@@ -759,7 +778,7 @@ function DataEditor({ type, busy, error, customers, plans, products, onClose, on
     quotation: onCreateQuotation,
     customer: onRegisterCustomer,
   };
-  const canCreateQuotation = customers.length > 0 && plans.length > 0 && activeProducts.length > 0;
+  const canCreateQuotation = customers.length > 0 && (templates.length > 0 || (plans.length > 0 && activeProducts.length > 0));
 
   function submit(event) {
     event.preventDefault();
@@ -789,6 +808,7 @@ function DataEditor({ type, busy, error, customers, plans, products, onClose, on
           <input className="editor-input" id="product-cost-price" name="cost_price" type="number" min="0" step="0.01" defaultValue="0" />
           <label className="form-label" htmlFor="product-notes">Notes</label>
           <textarea className="editor-input" id="product-notes" name="notes" rows="2" maxLength={2000} />
+          <label className="form-label" htmlFor="product-tax">Tax</label><select id="product-tax" name="tax_id" defaultValue=""><option value="">No tax</option>{taxes.filter((tax) => tax.active).map((tax) => <option key={tax.id} value={tax.id}>{tax.name} · {tax.rate_bps / 100}%</option>)}</select>
         </>}
 
         {type === "plan" && <>
@@ -800,6 +820,9 @@ function DataEditor({ type, busy, error, customers, plans, products, onClose, on
           <input className="editor-input" id="plan-price" name="base_price" type="number" min="0" step="0.01" required />
           <label className="form-label" htmlFor="plan-minimum">Minimum quantity</label>
           <input className="editor-input" id="plan-minimum" name="minimum_quantity" type="number" min="1" step="1" defaultValue="1" required />
+          <label className="form-label" htmlFor="plan-tax">Tax</label><select id="plan-tax" name="tax_id" defaultValue=""><option value="">No tax</option>{taxes.filter((tax) => tax.active).map((tax) => <option key={tax.id} value={tax.id}>{tax.name} · {tax.rate_bps / 100}%</option>)}</select>
+          <div className="editor-two-col"><div><label className="form-label" htmlFor="plan-from">Available from</label><input className="editor-input" id="plan-from" name="available_from" type="date" /></div><div><label className="form-label" htmlFor="plan-to">Available to</label><input className="editor-input" id="plan-to" name="available_to" type="date" /></div></div>
+          <fieldset className="editor-checks"><legend>Plan controls</legend><label><input type="checkbox" name="auto_close" /> Auto-close at expiry</label><label><input type="checkbox" name="allow_pause" defaultChecked /> Allow pause</label><label><input type="checkbox" name="allow_renew" defaultChecked /> Allow renewal</label><label><input type="checkbox" name="allow_cancel" defaultChecked /> Allow early close</label></fieldset>
         </>}
 
         {type === "customer" && <>
@@ -816,21 +839,22 @@ function DataEditor({ type, busy, error, customers, plans, products, onClose, on
         {type === "quotation" && <>
           <label className="form-label" htmlFor="quote-customer">Customer</label>
           <select id="quote-customer" name="customer" defaultValue="" required><option value="" disabled>Select customer</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} · #{customer.id}</option>)}</select>
-          <label className="form-label" htmlFor="quote-plan">Plan</label>
-          <select id="quote-plan" name="plan" defaultValue="" required><option value="" disabled>Select plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.base_price_paise)} / {plan.frequency}</option>)}</select>
-          <label className="form-label" htmlFor="quote-product">Product</label>
-          <select id="quote-product" name="product" value={selectedProductId} onChange={(event) => setSelectedProductId(event.target.value)} required><option value="" disabled>Select product</option>{activeProducts.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
-          {variants.length > 0 && <>
-            <label className="form-label" htmlFor="quote-variant">Variant</label>
-            <select id="quote-variant" name="variant" defaultValue=""><option value="">No variant</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {money(variant.price_delta_paise)} surcharge</option>)}</select>
+          {templates.length > 0 && <><label className="form-label" htmlFor="quote-template">Start from template</label><select id="quote-template" name="template_id" value={selectedTemplateId} onChange={(event) => setSelectedTemplateId(event.target.value)}><option value="">Build a custom quotation</option>{templates.map((template) => <option key={template.id} value={template.id}>{template.name} · valid {template.valid_days} days</option>)}</select></>}
+          {!selectedTemplateId && <>
+            <label className="form-label" htmlFor="quote-plan">Plan</label>
+            <select id="quote-plan" name="plan" defaultValue="" required><option value="" disabled>Select plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.base_price_paise)} / {plan.frequency}</option>)}</select>
+            <label className="form-label" htmlFor="quote-product">Product</label>
+            <select id="quote-product" name="product" value={selectedProductId} onChange={(event) => setSelectedProductId(event.target.value)} required><option value="" disabled>Select product</option>{activeProducts.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
+            {variants.length > 0 && <><label className="form-label" htmlFor="quote-variant">Variant</label><select id="quote-variant" name="variant" defaultValue=""><option value="">No variant</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {money(variant.price_delta_paise)} surcharge</option>)}</select></>}
+            <label className="form-label" htmlFor="quote-quantity">Quantity</label>
+            <input className="editor-input" id="quote-quantity" name="quantity" type="number" min="1" step="1" defaultValue="1" required />
           </>}
-          <label className="form-label" htmlFor="quote-quantity">Quantity</label>
-          <input className="editor-input" id="quote-quantity" name="quantity" type="number" min="1" step="1" defaultValue="1" required />
+          {discounts.some((discount) => discount.scope === "subscription" && discount.active) && <><label className="form-label" htmlFor="quote-discount">Subscription discount</label><select id="quote-discount" name="subscription_discount_id" defaultValue=""><option value="">No discount</option>{discounts.filter((discount) => discount.scope === "subscription" && discount.active).map((discount) => <option key={discount.id} value={discount.id}>{discount.name}</option>)}</select></>}
           <label className="form-label" htmlFor="quote-start">Start date</label>
           <input className="editor-input" id="quote-start" name="start_date" type="date" defaultValue={dateInputValue(new Date())} required />
           <label className="form-label" htmlFor="quote-expiry">Expiry date (exclusive)</label>
           <input className="editor-input" id="quote-expiry" name="expiry_date" type="date" min={dateInputValue(new Date(Date.now() + 86400000))} defaultValue={dateInputValue(new Date(Date.now() + 365 * 86400000))} required />
-          {!canCreateQuotation && <div className="form-hint">Add a customer, plan, and active product before creating a quotation.</div>}
+          {!canCreateQuotation && <div className="form-hint">Add a customer and either a template or a plan with an active product before creating a quotation.</div>}
         </>}
 
         <div className="modal-actions"><Button onClick={onClose}>Cancel</Button><Button kind="primary" type="submit" disabled={busy || (type === "quotation" && !canCreateQuotation)}>{busy ? "Saving…" : "Save"}</Button></div>
@@ -854,6 +878,9 @@ function App() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [products, setProducts] = useState([]);
   const [plans, setPlans] = useState([]);
+  const [taxes, setTaxes] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [customerAccounts, setCustomerAccounts] = useState([]);
   const [runResult, setRunResult] = useState(null);
   const [notice, setNotice] = useState("");
@@ -899,6 +926,9 @@ function App() {
         apiList("/api/plans"),
         apiRequest(`/api/dashboard?from=${from}&to=${to}`),
         apiRequest("/api/billing/preview"),
+        apiList("/api/taxes"),
+        apiList("/api/discounts"),
+        apiList("/api/templates"),
       ]),
     ];
     const results = await Promise.allSettled(requests);
@@ -911,6 +941,9 @@ function App() {
     const plansResult = customerMode ? null : results[3];
     const dashboardResult = customerMode ? null : results[4];
     const previewResult = customerMode ? null : results[5];
+    const taxesResult = customerMode ? null : results[6];
+    const discountsResult = customerMode ? null : results[7];
+    const templatesResult = customerMode ? null : results[8];
     const productsData = productsResult?.status === "fulfilled" ? productsResult.value : [];
     const plansData = plansResult?.status === "fulfilled" ? plansResult.value : [];
     const normalizedSubs = subscriptionData.map((item) => normalizeSubscription(item, plansData, productsData, invoiceData, user));
@@ -919,16 +952,22 @@ function App() {
     if (customerMode) {
       setProducts([]);
       setPlans([]);
+      setTaxes([]);
+      setDiscounts([]);
+      setTemplates([]);
       setDashboard(null);
       setPreview(null);
     } else {
       setProducts(productsData);
       setPlans(plansData);
+      setTaxes(taxesResult?.status === "fulfilled" ? taxesResult.value : []);
+      setDiscounts(discountsResult?.status === "fulfilled" ? discountsResult.value : []);
+      setTemplates(templatesResult?.status === "fulfilled" ? templatesResult.value : []);
       setDashboard(dashboardResult?.status === "fulfilled" ? dashboardResult.value : null);
       setPreview(previewResult?.status === "fulfilled" ? previewResult.value : null);
     }
 
-    const labels = ["subscriptions", "invoices", ...(customerMode ? [] : ["products", "plans", "dashboard", "billing preview"])];
+    const labels = ["subscriptions", "invoices", ...(customerMode ? [] : ["products", "plans", "dashboard", "billing preview", "taxes", "discounts", "templates"])];
     const failures = {};
     results.forEach((result, index) => {
       if (result.status === "rejected") failures[labels[index]] = result.reason.message;
@@ -1059,16 +1098,20 @@ function App() {
       sale_price_paise: Math.round(Number(values.sale_price) * 100),
       cost_price_paise: Math.round(Number(values.cost_price || 0) * 100),
       notes: values.notes || "",
+      tax_id: values.tax_id ? Number(values.tax_id) : null,
       active: true,
     } : {
       name: values.name,
       frequency: values.frequency,
       base_price_paise: Math.round(Number(values.base_price) * 100),
       minimum_quantity: Number(values.minimum_quantity || 1),
-      auto_close: false,
-      allow_pause: true,
-      allow_renew: true,
-      allow_cancel: true,
+      tax_id: values.tax_id ? Number(values.tax_id) : null,
+      available_from: values.available_from || null,
+      available_to: values.available_to || null,
+      auto_close: values.auto_close === "on",
+      allow_pause: values.allow_pause === "on",
+      allow_renew: values.allow_renew === "on",
+      allow_cancel: values.allow_cancel === "on",
     };
     const result = await perform(
       () => apiRequest(`/api/${isProduct ? "products" : "plans"}`, { method: "POST", body: payload }),
@@ -1077,20 +1120,52 @@ function App() {
     if (result) setEditor("");
   }
 
+  async function createCatalogExtra(type, values) {
+    const paise = (value) => Math.round(Number(value || 0) * 100);
+    const payloads = {
+      variant: () => ({ name: values.name, price_delta_paise: paise(values.price_delta) }),
+      tax: () => ({ name: values.name, rate_bps: paise(values.rate), active: true }),
+      discount: () => ({
+        name: values.name, kind: values.kind, scope: values.scope,
+        value: paise(values.value),
+        product_id: values.scope === "product" ? Number(values.product_id) : null,
+        min_purchase_paise: paise(values.min_purchase),
+        min_quantity: Number(values.min_quantity || 0),
+        starts_on: values.starts_on || null, ends_on: values.ends_on || null,
+        usage_limit: values.usage_limit ? Number(values.usage_limit) : null,
+        active: true,
+      }),
+      template: () => ({
+        name: values.name, plan_id: Number(values.plan_id), valid_days: Number(values.valid_days),
+        lines: values.lines.map((line) => ({
+          product_id: Number(line.product_id),
+          variant_id: line.variant_id ? Number(line.variant_id) : null,
+          quantity: Number(line.quantity),
+        })),
+      }),
+    };
+    const route = type === "variant" ? `/api/products/${Number(values.product_id)}/variants` : `/api/${type === "tax" ? "taxes" : type === "discount" ? "discounts" : "templates"}`;
+    const result = await perform(
+      () => apiRequest(route, { method: "POST", body: payloads[type]() }),
+      (record) => `${type[0].toUpperCase() + type.slice(1)} "${record.name}" created.`,
+    );
+    if (result) setEditor("");
+  }
+
   async function createQuotation(values) {
     const result = await perform(async () => {
+      const source = values.template_id ? { template_id: Number(values.template_id) } : {
+        plan: Number(values.plan),
+        lines: [{ product_id: Number(values.product), variant_id: values.variant ? Number(values.variant) : null, quantity: Number(values.quantity || 1) }],
+      };
       const subscription = await apiRequest("/api/subscriptions", {
         method: "POST",
         body: {
           customer: Number(values.customer),
-          plan: Number(values.plan),
+          ...source,
           start_date: values.start_date,
           expiry_date: values.expiry_date,
-          lines: [{
-            product_id: Number(values.product),
-            variant_id: values.variant ? Number(values.variant) : null,
-            quantity: Number(values.quantity || 1),
-          }],
+          subscription_discount_id: values.subscription_discount_id ? Number(values.subscription_discount_id) : null,
         },
       });
       return apiRequest(`/api/subscriptions/${subscription.id}/transition`, {
@@ -1147,6 +1222,9 @@ function App() {
     setSubscriptions([]);
     setProducts([]);
     setPlans([]);
+    setTaxes([]);
+    setDiscounts([]);
+    setTemplates([]);
     setCustomerAccounts([]);
     setPreview(null);
     setDashboard(null);
@@ -1201,7 +1279,7 @@ function App() {
             page === "subscriptions" ? <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} /> :
             page === "quotations" ? <Quotations subscriptions={subscriptions} customers={customers} plans={plans} products={products} onCreate={() => setEditor("quotation")} /> :
             page === "invoices" ? <Invoices invoices={filteredInvoices} onConfirm={confirmInvoice} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
-            page === "catalog" ? <Catalog products={products} plans={plans} subscriptions={subscriptions} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} /> :
+            page === "catalog" ? <Catalog products={products} plans={plans} taxes={taxes} discounts={discounts} templates={templates} subscriptions={subscriptions} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} onCreateExtra={(type) => { setOperationError(""); setEditor(type); }} /> :
             user.role === "admin" ? <Customers customers={customers} invoices={invoices} canAdd onAdd={() => setEditor("customer")} onCustomer={() => showNotice("Choose a customer record to review their billing data.")} /> :
             <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} />}
         </main>
@@ -1217,7 +1295,9 @@ function App() {
           <div className="modal-actions"><Button onClick={() => setPaymentInvoice(null)}>Cancel</Button><Button kind="primary" type="submit" disabled={actionBusy}>{actionBusy ? "Recording…" : "Record payment"}</Button></div>
         </form>
       </div>}
-      {editor && <DataEditor type={editor} busy={actionBusy} error={operationError} customers={customers} plans={plans} products={products} onClose={() => { setEditor(""); setOperationError(""); }} onCreateProduct={(values) => createCatalogRecord("product", values)} onCreatePlan={(values) => createCatalogRecord("plan", values)} onCreateQuotation={createQuotation} onRegisterCustomer={registerCustomer} />}
+      {editor && (["variant", "tax", "discount", "template"].includes(editor)
+        ? <CatalogEditor type={editor} products={products} plans={plans} busy={actionBusy} error={operationError} onClose={() => { setEditor(""); setOperationError(""); }} onSave={createCatalogExtra} />
+        : <DataEditor type={editor} busy={actionBusy} error={operationError} customers={customers} plans={plans} products={products} taxes={taxes} discounts={discounts} templates={templates} onClose={() => { setEditor(""); setOperationError(""); }} onCreateProduct={(values) => createCatalogRecord("product", values)} onCreatePlan={(values) => createCatalogRecord("plan", values)} onCreateQuotation={createQuotation} onRegisterCustomer={registerCustomer} />)}
     </div>
   );
 }

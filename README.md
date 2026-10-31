@@ -69,9 +69,11 @@ the subscription, preview and run billing, confirm the draft invoice, record a
 partial payment, inspect the dashboard and saved-snapshot invoice print view,
 refresh, then run billing again to show zero duplicates. Sign in as the seeded
 customer to see only their subscriptions and invoices. Run
-`.venv/bin/python manage.py maintain_subscriptions` before expiry-sensitive
-reporting; it catches up old active periods and finalizes expired/auto-close
-contracts. The Vite server proxies `/api` to Django on `127.0.0.1:8000`.
+`.venv/bin/python manage.py run_billing` daily, followed by
+`.venv/bin/python manage.py maintain_subscriptions`. Billing catches up due
+periods before maintenance finalizes expired or auto-close contracts. Both
+commands accept `--as-of YYYY-MM-DD` for a past date. The Vite server proxies
+`/api` to Django on `127.0.0.1:8000`.
 
 The reset-password and customer add-on/quantity screens have not yet been
 connected in React. Their backend routes and payloads are documented in
