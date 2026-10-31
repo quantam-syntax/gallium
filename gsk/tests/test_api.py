@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 from rest_framework.test import APIClient
 
 from gsk.billing import BillableLine
+from gsk.integration import IntegrationPending
 from gsk.service import BillingCandidate
 from gsk.tests.test_billing import MemoryRepo
 
@@ -53,11 +54,12 @@ class BillingApiTests(SimpleTestCase):
         self.assertEqual(self.client.get("/api/billing/preview?as_of=not-a-date").status_code, 400)
         self.assertEqual(self.client.post("/api/billing/run", {"as_of": "2026-11-01"}, format="json").status_code, 400)
 
-    def test_missing_teammate_adapter_returns_clear_unavailable_response(self):
+    @patch("gsk.views.get_repository", side_effect=IntegrationPending("billing adapter unavailable"))
+    def test_unavailable_adapter_returns_clear_response(self, _repository):
         self.authenticate("staff")
         response = self.client.get("/api/billing/preview")
         self.assertEqual(response.status_code, 503)
-        self.assertIn("handoffs", response.data["detail"])
+        self.assertIn("unavailable", response.data["detail"])
 
     @patch("gsk.views.get_repository")
     def test_preview_and_two_runs_obey_response_contract(self, get_repository):

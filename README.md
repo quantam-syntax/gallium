@@ -18,13 +18,36 @@ The old branch is retained locally, including any unpushed commits. Ask GSK to h
 
 The later dashboard commit `97f4fa9` was also recorded as **AKASH S KISHOR** with Gauthami's email. Set both `user.name` and `user.email` locally and verify them before making another commit. This published commit remains in shared history; correcting it would require another coordinated rewrite.
 
-## GSK setup
+## Run the integrated backend
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python manage.py test gsk.tests --settings=gsk.test_settings
-.venv/bin/python manage.py check --settings=gsk.test_settings
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py runserver 127.0.0.1:8000
+```
+
+In another terminal, seed the demo once with a password you choose (more than
+eight characters, including uppercase, lowercase, and a special character):
+
+```bash
+BRIGHTLOOP_DEMO_PASSWORD='ChooseYourOwn!123' .venv/bin/python manage.py seed_yascn_demo
+```
+
+The seed creates `admin@brightloop.example`, `customer@brightloop.example`, and
+an active subscription due today. Existing account passwords and billing cursors
+are preserved, so use the password from the first seed on subsequent runs.
+The admin can log in at `POST /api/auth/login`, preview at
+`GET /api/billing/preview`, run billing at `POST /api/billing/run`, and access
+invoices, payments, and dashboard data under `/api/invoices` and `/api/dashboard`.
+All authenticated requests use `Authorization: Token <login token>`.
+
+Run the integrated checks with:
+
+```bash
+.venv/bin/python manage.py test aliar.tests yascn.tests gsk.tests
+.venv/bin/python manage.py check
+.venv/bin/python manage.py makemigrations --check --dry-run
 ```
 
 ## Frontend check
@@ -35,10 +58,17 @@ npm ci
 npm run build
 ```
 
-Current frontend code is a buildable welcome screen. GDM's contract-shaped admin, customer, and Billing Control Tower views are still in progress.
+The frontend has responsive admin, customer, and Billing Control Tower views,
+but currently uses local in-memory demo records. GDM's next handoff is to
+connect these screens to authenticated backend APIs and add an individual
+invoice print view from the saved invoice snapshot.
 The Vite development server proxies `/api` to Django on `127.0.0.1:8000`, so frontend calls can use relative API paths.
 
-YASCN's custom User, catalog, and subscription app is present and routed. Once `aliar/` is delivered, GSK will connect both apps in `gsk/integration.py`, register ALIAR's routes, then run migrations and the full Django check. The app is intentionally not migrated with Django's default User.
+YASCN's custom User and ALIAR's finance app are installed, routed, and connected
+through GSK's production billing repository. The app is intentionally not
+migrated with Django's default User.
 
-`gsk.test_settings` is only for isolated billing API tests. It omits unfinished teammate apps and uses Django's User solely in that test process; never use it for production migrations.
+`gsk.test_settings` is only for isolated billing API tests. It omits teammate
+apps and uses Django's User solely in that test process; never use it for
+production migrations.
 

@@ -15,21 +15,28 @@
   Reviewed the frontend at desktop and mobile widths, improved its visual
   hierarchy and data consistency, and verified the browser demo's second
   billing run creates no additional invoice.
-- The combined ALIAR, YASCN, and GSK isolated test suite passes: 76 tests.
+- Connected YASCN's due-candidate mapper and ALIAR's atomic invoice creation in
+  the production repository. Mounted ALIAR's API routes in the root URL config.
+- Migrated and seeded a local demo database. The unpatched production API path
+  creates an invoice matching the ₹1,840.80 preview, records a ₹500.00 partial
+  payment, reports ₹1,340.80 outstanding, and creates nothing on a second run.
+- Added a production-settings regression test covering the same path and
+  customer access controls. The combined suite now passes 77 tests.
 
 ## Next
 
-- Connect `yascn.billing.due_candidates` and ALIAR's invoice creation service
-  in `gsk/integration.py` to make production preview/run endpoints live.
-- Register `aliar.urls` in `gsk/urls.py`, then connect GDM's in-memory UI to
-  authenticated APIs and the saved invoice snapshot/print view.
+- Hand Gauthami the live API and seeded demo so she can replace local UI state
+  with authenticated requests and a saved-snapshot invoice print view.
+- Let Yazeen begin password reset and the deferred lifecycle flows now that
+  the integrated backend gate passes. Ali owns any finance defects found.
+- Rehearse the full browser path after GDM connects the API; prepare the final
+  demo and delivery once that path works after refresh.
 
 ## Blocked
 
-- ALIAR and YASCN handoffs are now present. The production repository adapter
-  still raises `IntegrationPending`, and root URLs do not expose ALIAR routes.
-- GDM's Billing Control Tower and portal are polished demos but still hold data
-  in React memory. Authentication, API reads/writes, and persistence are next.
+- GDM's Billing Control Tower and portal still hold data in React memory.
+  Browser authentication, API reads/writes, refresh persistence, and invoice
+  printing remain the final integration gap.
 
 ## Contract changes
 
@@ -46,5 +53,9 @@
 - `.venv/bin/python manage.py check --settings=gsk.test_settings`: passed, 0 issues.
 - `.venv/bin/python manage.py test yascn --settings=yascn.test_settings`: 23 tests passed after catch-up and customer catalog access fixes.
 - `cd gdm && npm ci && npm run build`: passed.
-- `.venv/bin/python manage.py test aliar.tests yascn.tests gsk.tests --settings=aliar.test_settings`: 76 passed.
+- `.venv/bin/python manage.py test aliar.tests yascn.tests gsk.tests`: 77 passed with production settings and root URLs.
+- `.venv/bin/python manage.py test gsk.tests --settings=gsk.test_settings`: 11 passed; the production-only test was skipped.
+- Local database: production migrations and seeded API walkthrough passed; first
+  run created one invoice, second created none, and customer finance access was
+  restricted.
 - `cd gdm && npm run build`: passed after the visual review.
