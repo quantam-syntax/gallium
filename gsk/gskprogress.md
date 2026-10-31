@@ -7,6 +7,7 @@
 - Next: final seeded browser rehearsal, any teammate integration fixes, and demo recording/submission.
 - Pulled Gauthami's UI contribution: password recovery, customer add-on editing, and invoice actions are present. Full backend suite, Django check/migration check, and Vite build pass. Fixed cancelled-invoice display and customer line styling found in review. Corrected shared author attribution to Gauthami; she must correct local Git config before her next commit.
 - Added a staff-only paginated customer directory and connected it to the quotation selector, fixing the loss of newly registered customers after refresh.
+- The isolated browser rehearsal found that the customer portal lacked plan/product names and omitted the plan fee from its displayed price. Added owner-scoped display names and recurring totals to subscription responses and connected the portal to them. Verified reset email/link, customer quantity edit, invoice cancel/reissue/confirm/send, and clean token state using a copied demo database; 110 backend tests and the frontend build pass.
 
 ## Done
 

@@ -68,8 +68,6 @@ function normalizeSubscription(subscription, plans, products, invoices, user) {
     : linkedInvoice?.customer_name || (typeof subscription.customer === "object"
       ? subscription.customer.full_name || subscription.customer.email
       : `Customer #${customerId}`);
-  const lineValue = (subscription.lines || []).reduce((total, line) =>
-    total + (line.unit_price_paise || 0) * (line.quantity || 0), 0);
   const lines = (subscription.lines || []).map((line) => {
     const productId = typeof line.product_id === "object" ? line.product_id.id : line.product_id;
     const variantId = typeof line.variant_id === "object" ? line.variant_id.id : line.variant_id;
@@ -77,7 +75,9 @@ function normalizeSubscription(subscription, plans, products, invoices, user) {
     const variant = product?.variants?.find((item) => item.id === variantId);
     return {
       ...line,
-      description: variant ? `${product?.name || "Product"} · ${variant.name}` : product?.name || "Product",
+      description: line.product_name
+        ? `${line.product_name}${line.variant_name ? ` · ${line.variant_name}` : ""}`
+        : variant ? `${product?.name || "Product"} · ${variant.name}` : product?.name || "Product",
     };
   });
 
@@ -86,9 +86,10 @@ function normalizeSubscription(subscription, plans, products, invoices, user) {
     customer_id: customerId,
     customer: customerName,
     plan_id: planId,
-    plan: plan?.name || `Plan #${planId}`,
-    frequency: plan?.frequency || "",
-    mrr_paise: (plan?.base_price_paise || 0) + lineValue,
+    plan: subscription.plan_name || plan?.name || `Plan #${planId}`,
+    frequency: subscription.plan_frequency || plan?.frequency || "",
+    recurring_amount_paise: subscription.recurring_amount_paise ?? 0,
+    mrr_paise: subscription.gross_mrr_paise ?? 0,
     lines,
     permitted_actions: subscription.permitted_actions || [],
   };
@@ -760,7 +761,7 @@ function CustomerPortal({ user, subscriptions, invoices, onAction, onInvoice, on
         return <section className="portal-subscription" key={subscription.id}>
           <div className="portal-sub-header"><div><span className="eyebrow">YOUR SUBSCRIPTION</span><Status tone={subscription.status}>{subscription.status}</Status></div></div>
           <h2>{subscription.plan}</h2><p className="portal-sub-number">{subscription.number} · Started {shortDate(subscription.start_date)}</p>
-          <div className="portal-sub-stats"><div><small>Subscription price</small><strong>{money(subscription.mrr_paise)}</strong></div><div><small>Next billing date</small><strong>{shortDate(subscription.next_bill_date)}</strong></div><div><small>Plan</small><strong>{subscription.plan}</strong><small>{subscription.frequency || "Recurring subscription"}</small></div></div>
+          <div className="portal-sub-stats"><div><small>Price per {subscription.frequency || "billing cycle"}</small><strong>{money(subscription.recurring_amount_paise)}</strong></div><div><small>Next billing date</small><strong>{shortDate(subscription.next_bill_date)}</strong></div><div><small>Plan</small><strong>{subscription.plan}</strong><small>{subscription.frequency || "Recurring subscription"}</small></div></div>
           {subscription.lines?.some((line) => line.active !== false) && <div className="portal-line-list"><strong>Included products</strong>{subscription.lines.filter((line) => line.active !== false).map((line, index) => <span key={`${line.product_id}-${line.variant_id || "base"}-${index}`}>{line.description} <b>× {line.quantity}</b></span>)}</div>}
           <div className="portal-actions">
             {subscription.permitted_actions.map((action) => <Button key={action} disabled={busy} onClick={() => onAction(subscription.id, action)}>{action === "close" ? "Cancel subscription" : action[0].toUpperCase() + action.slice(1)}</Button>)}

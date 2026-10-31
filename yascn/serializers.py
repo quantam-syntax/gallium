@@ -4,6 +4,8 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from gsk.billing import BillableLine, gross_mrr_paise
+
 from .models import (User, Tax, Product, Variant, Plan, Discount, QuotationTemplate,
                      TemplateLine, Subscription, SubscriptionLine)
 from .validators import validate_password
@@ -136,10 +138,15 @@ class LineSerializer(serializers.ModelSerializer):
 
 class SubscriptionLineSerializer(LineSerializer):
     tax_id = serializers.PrimaryKeyRelatedField(source="tax", queryset=Tax.objects.all(), allow_null=True, required=False)
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    variant_name = serializers.SerializerMethodField()
 
     class Meta(LineSerializer.Meta):
         model = SubscriptionLine
-        fields = LineSerializer.Meta.fields + ["tax_id", "active"]
+        fields = LineSerializer.Meta.fields + ["tax_id", "active", "product_name", "variant_name"]
+
+    def get_variant_name(self, obj):
+        return obj.variant.name if obj.variant_id else None
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -196,12 +203,30 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     subscription_discount_id = serializers.PrimaryKeyRelatedField(source="subscription_discount",
         queryset=Discount.objects.filter(scope="subscription", active=True), allow_null=True, required=False)
     permitted_actions = serializers.SerializerMethodField()
+    plan_name = serializers.CharField(source="plan.name", read_only=True)
+    plan_frequency = serializers.CharField(source="plan.frequency", read_only=True)
+    recurring_amount_paise = serializers.SerializerMethodField()
+    gross_mrr_paise = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
-        fields = ["id", "number", "customer", "plan", "status", "start_date", "expiry_date", "quote_expires_at",
+        fields = ["id", "number", "customer", "plan", "plan_name", "plan_frequency", "recurring_amount_paise",
+                  "gross_mrr_paise", "status", "start_date", "expiry_date", "quote_expires_at",
                   "payment_terms_days", "next_bill_date", "subscription_discount_id", "lines", "permitted_actions", "template_id"]
         read_only_fields = ["number", "status", "next_bill_date"]
+
+    def get_recurring_amount_paise(self, obj):
+        return obj.plan.base_price_paise + sum(
+            line.quantity * line.unit_price_paise for line in obj.lines.all() if line.active
+        )
+
+    def get_gross_mrr_paise(self, obj):
+        return gross_mrr_paise(
+            plan_fee_paise=obj.plan.base_price_paise,
+            lines=[BillableLine("", line.quantity, line.unit_price_paise)
+                   for line in obj.lines.all() if line.active],
+            frequency=obj.plan.frequency,
+        )
 
     def get_permitted_actions(self, obj):
         if self.context["request"].user.role == "customer":

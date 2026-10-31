@@ -3,6 +3,7 @@
 ## Latest integration handoff
 
 - Customer accounts now load from the staff-only paginated directory. A live browser check created a temporary customer, refreshed the app, and confirmed the account appeared in both Customers and the quotation selector; the temporary account was removed afterward.
+- GSK's isolated browser check confirmed password-reset email request and link confirmation, cleared auth token, customer quantity change, invoice cancel/reissue/confirm/send, and saved send timestamp. Customer portal now reads safe plan/product names and backend recurring totals, so its price includes the plan fee. All 110 backend tests and the Vite build pass after this correction.
 
 - Added a responsive catalog summary and richer product/variant cards with subtle motion and reduced-motion support.
 - Admin forms now create variants, taxes, fixed/percentage discounts, and multi-line quotation templates through the live API. Product and plan forms expose tax and availability/permission settings. Quotation creation can use a saved template and assign a subscription discount.

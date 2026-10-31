@@ -83,6 +83,14 @@ class PhaseOneAPITests(APITestCase):
         Product.objects.filter(pk=product["id"]).update(sale_price_paise=999999)
         self.assertEqual(sub.lines.get().unit_price_paise, 56000)
         self.assertEqual(self.client.get("/api/products").data["count"], 2)
+        self.login_as(self.customer)
+        owned = self.client.get("/api/subscriptions").data["results"][0]
+        self.assertEqual(owned["plan_name"], "Core")
+        self.assertEqual(owned["plan_frequency"], "monthly")
+        self.assertEqual(owned["recurring_amount_paise"], 156000)
+        self.assertEqual(owned["gross_mrr_paise"], 156000)
+        self.assertEqual(owned["lines"][0]["product_name"], "Connectors")
+        self.assertEqual(owned["lines"][0]["variant_name"], "Odoo")
 
     def test_public_registration_login_and_me(self):
         response = self.post_ok("auth/register", {"email": "New@EXAMPLE.com", "password": PASSWORD, "full_name": "New"})

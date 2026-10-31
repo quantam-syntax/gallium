@@ -75,8 +75,10 @@ commands accept `--as-of YYYY-MM-DD` for a past date. The Vite server proxies
 
 The React app now includes password recovery, customer add-on/quantity editing,
 and staff invoice send/cancel/reissue controls. Their backend routes and payloads
-are documented in `yascn/LIFECYCLE.md` and `CONTRACT.md`. The final full-browser
-rehearsal of these newer flows and the demo recording remain outstanding.
+are documented in `yascn/LIFECYCLE.md` and `CONTRACT.md`. The reset-link,
+customer quantity edit, invoice cancellation/reissue, and invoice send paths
+passed a local browser check against an isolated copy of the demo database.
+The final team demo recording remains outstanding.
 Staff can retrieve every active customer account through `GET /api/customers`,
 so newly registered customers remain available for quotations after refresh.
 
