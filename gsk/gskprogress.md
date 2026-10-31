@@ -2,6 +2,7 @@
 
 ## Latest integration handoff
 
+- Completed the staff payment form's date and note inputs and wrote `DEMO.md` with the exact recording path. A browser check against an isolated demo database saved ₹500 by UPI with a prior payment date and reference note; the API returned the same values. The final recording and submission remain with the team lead.
 - Added `python manage.py run_billing [--as-of YYYY-MM-DD]`, calling the same idempotent billing service as the Control Tower. Schedule billing before `maintain_subscriptions` so final periods can be invoiced.
 - Built and browser-verified the catalog admin forms with GDM's frontend. Updated each owner's root brief with current remaining work.
 - Next: final seeded browser rehearsal, any teammate integration fixes, and demo recording/submission.
@@ -41,17 +42,11 @@
 
 ## Next
 
-- Ask Gauthami to connect reset-password and customer add-on/quantity screens
-  to Yazeen's completed APIs, and finish any invoice send/cancel/reissue UI.
-- Rehearse the browser flow with a newly due subscription and capture the final
-  demo/video. Keep the seeded database intact; never rewind a billed cursor.
-- Rehearse the full browser story once more on the final demo environment and
-  record the video/submission. Keep the confirmed local demo records intact.
+- Rehearse the full browser story once on the final recording environment using a newly activated quotation. Capture the demo and submit the repository and video. Keep the seeded database intact; never rewind a billed cursor.
 
 ## Blocked
 
-- Core staff billing and customer portal paths use the API and pass a live
-  browser walkthrough. Reset/add-on screens remain pending with Gauthami.
+- No implementation blocker is known. Recording and submission remain team tasks.
 
 ## Contract changes
 

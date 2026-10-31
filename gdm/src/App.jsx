@@ -926,6 +926,8 @@ function App() {
   const [paymentInvoice, setPaymentInvoice] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("bank");
+  const [paymentDate, setPaymentDate] = useState(() => dateInputValue(new Date()));
+  const [paymentNote, setPaymentNote] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [editor, setEditor] = useState("");
   const [addonSubscription, setAddonSubscription] = useState(null);
@@ -1159,11 +1161,20 @@ function App() {
     const result = await perform(
       () => apiRequest(`/api/invoices/${invoice.id}/payments`, {
         method: "POST",
-        body: { method: paymentMethod, amount_paise: amountPaise, paid_on: dateInputValue(new Date()), note: "" },
+        body: { method: paymentMethod, amount_paise: amountPaise, paid_on: paymentDate, note: paymentNote.trim() },
       }),
       () => `Payment of ${money(amountPaise)} recorded.`,
     );
     if (result) setPaymentInvoice(null);
+  }
+
+  function openPayment(invoice) {
+    setOperationError("");
+    setPaymentInvoice(invoice.id);
+    setPaymentAmount("");
+    setPaymentMethod("bank");
+    setPaymentDate(dateInputValue(new Date()));
+    setPaymentNote("");
   }
 
   async function confirmInvoice(invoice) {
@@ -1408,10 +1419,10 @@ function App() {
           {operationError && <div className="api-alert" role="alert"><strong>Action could not be completed</strong><span>{operationError}</span><button className="api-retry" onClick={() => setOperationError("")}>Dismiss</button></div>}
           {dataLoading && <div className="loading-banner" role="status">Loading the latest data from Brightloop…</div>}
           {customerMode ? <CustomerPortal user={user} subscriptions={subscriptions} invoices={invoices} onAction={transitionSubscription} onInvoice={setPrintInvoice} onManageLines={openAddonEditor} busy={actionBusy || addonOptionsLoading} /> :
-            page === "overview" ? <Overview preview={preview} dashboard={dashboard} invoices={invoices} subscriptions={subscriptions} runResult={runResult} onRun={runBilling} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onNavigate={navigate} loading={dataLoading} /> :
+            page === "overview" ? <Overview preview={preview} dashboard={dashboard} invoices={invoices} subscriptions={subscriptions} runResult={runResult} onRun={runBilling} onPayment={openPayment} onNavigate={navigate} loading={dataLoading} /> :
             page === "subscriptions" ? <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} /> :
             page === "quotations" ? <Quotations subscriptions={subscriptions} customers={customers} plans={plans} products={products} onCreate={() => setEditor("quotation")} /> :
-            page === "invoices" ? <Invoices invoices={filteredInvoices} canManage={user.role === "admin" || user.role === "staff"} busy={actionBusy} onConfirm={confirmInvoice} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onAction={performInvoiceAction} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
+            page === "invoices" ? <Invoices invoices={filteredInvoices} canManage={user.role === "admin" || user.role === "staff"} busy={actionBusy} onConfirm={confirmInvoice} onPayment={openPayment} onAction={performInvoiceAction} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
             page === "catalog" ? <Catalog products={products} plans={plans} taxes={taxes} discounts={discounts} templates={templates} subscriptions={subscriptions} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} onCreateExtra={(type) => { setOperationError(""); setEditor(type); }} /> :
             user.role === "admin" ? <Customers customers={customers} invoices={invoices} canAdd onAdd={() => setEditor("customer")} onCustomer={() => showNotice("Choose a customer record to review their billing data.")} /> :
             <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} />}
@@ -1423,8 +1434,11 @@ function App() {
           <button className="modal-close" type="button" aria-label="Close" onClick={() => setPaymentInvoice(null)}>×</button>
           <span className="modal-icon"><Icon name="receipt" size={20} /></span><p className="eyebrow">Record payment</p>
           <h2>{invoices.find((invoice) => invoice.id === paymentInvoice)?.number}</h2><p className="modal-help">The backend checks this payment against the invoice’s remaining balance.</p>
-          <label className="form-label" htmlFor="payment-amount">Amount (INR)</label><div className="amount-input"><span>₹</span><input id="payment-amount" type="number" min="0.01" step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} autoFocus required /></div>
+          {operationError && <div className="api-alert editor-alert" role="alert">{operationError}</div>}
+          <label className="form-label" htmlFor="payment-amount">Amount (INR)</label><div className="amount-input"><span>₹</span><input id="payment-amount" type="number" min="0.01" step="0.01" max={(invoices.find((invoice) => invoice.id === paymentInvoice)?.balance_paise || 0) / 100} value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} autoFocus required /></div>
           <label className="form-label" htmlFor="payment-method">Payment method</label><select id="payment-method" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="bank">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="upi">UPI</option></select>
+          <label className="form-label" htmlFor="payment-date">Payment date</label><input className="editor-input" id="payment-date" type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} required />
+          <label className="form-label" htmlFor="payment-note">Note <span className="field-optional">Optional</span></label><textarea className="editor-input" id="payment-note" rows="3" maxLength={2000} placeholder="Bank reference or payment context" value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} />
           <div className="modal-actions"><Button onClick={() => setPaymentInvoice(null)}>Cancel</Button><Button kind="primary" type="submit" disabled={actionBusy}>{actionBusy ? "Recording…" : "Record payment"}</Button></div>
         </form>
       </div>}

@@ -2,6 +2,8 @@
 
 Subscription billing demo built by four owners. Read [CONTRACT.md](CONTRACT.md) for shared models and API shapes; the individual handoff files describe each owner's work. GSK owns the Django project and billing engine, YASCN owns identity/catalog/subscriptions, ALIAR owns invoices/payments/reporting, and GDM owns React UI.
 
+For the recording sequence and setup checklist, use [DEMO.md](DEMO.md).
+
 ## Sync after the author-name correction
 
 On 31 October, `main` history was rewritten to correct all GDM commits recorded with **AKASH S KISHOR** and `vgauthami007@gmail.com` to the author and committer name **Gauthami**. The account and email remain the same. Later commits have new hashes because their parent hashes changed; the application changes were preserved. A normal `git pull` from an older clone may report divergent branches.

@@ -2,6 +2,7 @@
 
 ## Latest integration handoff
 
+- Staff payment entry now includes amount, method, editable payment date, and an optional note up to 2,000 characters; the modal shows validation errors in place. The form resets its values for each invoice. GSK verified a browser payment of ₹500 via UPI dated 2026-10-30 with reference `DEMO-REF-42`; all four fields persisted through the API on an isolated demo database. The React build and all 110 backend tests pass. The recording sequence is in `DEMO.md`.
 - Customer accounts now load from the staff-only paginated directory. A live browser check created a temporary customer, refreshed the app, and confirmed the account appeared in both Customers and the quotation selector; the temporary account was removed afterward.
 - GSK's isolated browser check confirmed password-reset email request and link confirmation, cleared auth token, customer quantity change, invoice cancel/reissue/confirm/send, and saved send timestamp. Customer portal now reads safe plan/product names and backend recurring totals, so its price includes the plan fee. All 110 backend tests and the Vite build pass after this correction.
 
@@ -40,14 +41,7 @@
 
 ## Integration gaps
 
-- GSK now registers ALIAR routes; the core API-backed browser path works.
-- Full end-to-end verification for password reset, customer line editing, and
-  invoice delivery/cancellation/reissue requires a running integrated backend
-  and usable demo accounts.
-- Final team demo rehearsal and recording remain outstanding.
-- There is no customer-directory API route yet. The staff customer list is
-  derived from invoices and subscriptions; accounts created in the current
-  session are additionally available for quotation creation.
+- The integrated browser path, password reset, customer line editing, customer directory, invoice actions, and payment fields have been checked. The final team demo recording and submission remain outstanding.
 
 ## Verification
 
