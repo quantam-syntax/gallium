@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Auth from "./Auth.jsx";
 import CatalogEditor from "./CatalogEditor.jsx";
+import CustomerAddonEditor from "./CustomerAddonEditor.jsx";
 import InvoicePrint from "./InvoicePrint.jsx";
 import { apiList, apiRequest, clearToken, getToken, storeToken } from "./api.js";
 
@@ -642,7 +643,7 @@ function Quotations({ subscriptions, customers, plans, products, onCreate }) {
   );
 }
 
-function Invoices({ invoices, onConfirm, onPayment, onPrint, onInvoice }) {
+function Invoices({ invoices, canManage, busy, onConfirm, onPayment, onAction, onPrint, onInvoice }) {
   return (
     <>
       <PageHeader eyebrow="BILLING & PAYMENTS" title="Invoices" subtitle="Every invoice, payment, and outstanding balance in one place." action={<Button icon="file" onClick={onPrint}>Print</Button>} />
@@ -660,7 +661,14 @@ function Invoices({ invoices, onConfirm, onPayment, onPrint, onInvoice }) {
             <td>{invoice.customer_name}</td><td>{shortDate(invoice.issued_on)}</td><td>{shortDate(invoice.due_on)}</td>
             <td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} due` : "Paid in full"}</small></td>
             <td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.is_overdue ? "overdue" : "confirmed"}>{invoice.balance_paise === 0 ? "Paid" : invoice.is_overdue ? "Overdue" : invoice.paid_paise ? "Partial" : invoice.status}</Status></td>
-            <td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View / print</button>{invoice.status === "draft" && <button className="table-action-link" onClick={() => onConfirm(invoice)}>Confirm</button>}{invoice.status === "confirmed" && invoice.balance_paise > 0 && <button className="table-action-link" onClick={() => onPayment(invoice)}>Record payment</button>}</td>
+            <td className="invoice-row-actions">
+              <button className="table-action-link" disabled={busy} onClick={() => onInvoice(invoice)}>View / print</button>
+              {canManage && invoice.status === "draft" && <button className="table-action-link" disabled={busy} onClick={() => onConfirm(invoice)}>Confirm</button>}
+              {canManage && invoice.status === "confirmed" && invoice.balance_paise > 0 && <button className="table-action-link" disabled={busy} onClick={() => onPayment(invoice)}>Record payment</button>}
+              {canManage && ["confirmed", "paid"].includes(invoice.status) && <button className="table-action-link" disabled={busy} onClick={() => onAction(invoice, "send")}>{invoice.sent_at ? "Resend" : "Send invoice"}</button>}
+              {canManage && ["draft", "confirmed"].includes(invoice.status) && invoice.paid_paise === 0 && <button className="table-action-link invoice-danger-action" disabled={busy} onClick={() => onAction(invoice, "cancel")}>Cancel invoice</button>}
+              {canManage && invoice.status === "cancelled" && <button className="table-action-link" disabled={busy} onClick={() => onAction(invoice, "reissue")}>Reissue</button>}
+            </td>
           </tr>)}</tbody>
         </table></div> : <div className="table-empty"><span className="empty-check"><Icon name="search" /></span><div><strong>No invoices found</strong><small>Try adjusting your search.</small></div></div>}
       </section>
@@ -725,27 +733,31 @@ function Customers({ customers, invoices, canAdd, onAdd, onCustomer }) {
   );
 }
 
-function CustomerPortal({ user, subscriptions, invoices, onAction, onInvoice }) {
-  const activeSubscription = subscriptions[0];
+function CustomerPortal({ user, subscriptions, invoices, onAction, onInvoice, onManageLines, busy }) {
   const displayName = user.company_name || user.full_name;
   return (
     <>
       <div className="portal-welcome"><div className="portal-avatar">{displayName.slice(0, 1).toUpperCase()}</div><div><p className="eyebrow">WELCOME BACK</p><h1>Hello, {displayName}</h1><p>Here’s your subscription at a glance.</p></div><span className="portal-tag"><span /> CUSTOMER PORTAL</span></div>
-      {activeSubscription ? <>
-        <section className="portal-subscription">
-          <div className="portal-sub-header"><div><span className="eyebrow">YOUR SUBSCRIPTION</span><Status tone={activeSubscription.status}>{activeSubscription.status}</Status></div><button className="row-more" aria-label="Subscription options"><Icon name="more" /></button></div>
-          <h2>{activeSubscription.plan}</h2><p className="portal-sub-number">{activeSubscription.number} · Started {shortDate(activeSubscription.start_date)}</p>
-          <div className="portal-sub-stats"><div><small>Subscription price</small><strong>{money(activeSubscription.mrr_paise)}</strong></div><div><small>Next billing date</small><strong>{shortDate(activeSubscription.next_bill_date)}</strong></div><div><small>Plan</small><strong>{activeSubscription.plan}</strong><small>{activeSubscription.frequency || "Recurring subscription"}</small></div></div>
-          {activeSubscription.permitted_actions.length > 0 && <div className="portal-actions">{activeSubscription.permitted_actions.map((action) => <Button key={action} onClick={() => onAction(activeSubscription.id, action)}>{action === "close" ? "Cancel subscription" : action[0].toUpperCase() + action.slice(1)}</Button>)}</div>}
-        </section>
-        <section className="content-card list-card portal-invoices">
-          <div className="list-toolbar"><div><h2>Your invoices</h2><span>Access your invoice history</span></div></div>
-          {invoices.length ? <div className="table-scroll"><table className="data-table full-table">
-            <thead><tr><th>INVOICE</th><th>ISSUED</th><th>AMOUNT</th><th>STATUS</th><th /></tr></thead>
-            <tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button className="invoice-number-link" onClick={() => onInvoice(invoice)}>{invoice.number}</button><small className="table-secondary">Due {shortDate(invoice.due_on)}</small></td><td>{shortDate(invoice.issued_on)}</td><td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} remaining` : "Paid in full"}</small></td><td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.paid_paise ? "partial" : invoice.status}>{invoice.balance_paise === 0 ? "Paid" : invoice.paid_paise ? "Partial" : "Due"}</Status></td><td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View invoice</button></td></tr>)}</tbody>
-          </table></div> : <div className="table-empty portal-empty"><span className="empty-check"><Icon name="receipt" /></span><div><strong>No invoices yet</strong><small>Your invoices will appear here after your next billing run.</small></div></div>}
-        </section>
-      </> : <div className="table-empty"><span className="empty-check"><Icon name="repeat" /></span><div><strong>No active subscriptions</strong><small>There are no subscriptions available for this account.</small></div></div>}
+      {subscriptions.length ? subscriptions.map((subscription) => {
+        const canEditLines = subscription.status === "active" && subscription.expiry_date > dateInputValue(new Date());
+        return <section className="portal-subscription" key={subscription.id}>
+          <div className="portal-sub-header"><div><span className="eyebrow">YOUR SUBSCRIPTION</span><Status tone={subscription.status}>{subscription.status}</Status></div></div>
+          <h2>{subscription.plan}</h2><p className="portal-sub-number">{subscription.number} · Started {shortDate(subscription.start_date)}</p>
+          <div className="portal-sub-stats"><div><small>Subscription price</small><strong>{money(subscription.mrr_paise)}</strong></div><div><small>Next billing date</small><strong>{shortDate(subscription.next_bill_date)}</strong></div><div><small>Plan</small><strong>{subscription.plan}</strong><small>{subscription.frequency || "Recurring subscription"}</small></div></div>
+          {subscription.lines?.length > 0 && <div className="portal-line-list"><strong>Included products</strong>{subscription.lines.filter((line) => line.active !== false).map((line, index) => <span key={`${line.product_id}-${line.variant_id || "base"}-${index}`}>{line.description} <b>× {line.quantity}</b></span>)}</div>}
+          <div className="portal-actions">
+            {subscription.permitted_actions.map((action) => <Button key={action} disabled={busy} onClick={() => onAction(subscription.id, action)}>{action === "close" ? "Cancel subscription" : action[0].toUpperCase() + action.slice(1)}</Button>)}
+            {canEditLines && <Button disabled={busy} onClick={() => onManageLines(subscription)}>Manage products & quantities</Button>}
+          </div>
+        </section>;
+      }) : <div className="table-empty"><span className="empty-check"><Icon name="repeat" /></span><div><strong>No subscriptions yet</strong><small>Your subscriptions will appear here when available.</small></div></div>}
+      <section className="content-card list-card portal-invoices">
+        <div className="list-toolbar"><div><h2>Your invoices</h2><span>Access your invoice history</span></div></div>
+        {invoices.length ? <div className="table-scroll"><table className="data-table full-table">
+          <thead><tr><th>INVOICE</th><th>ISSUED</th><th>AMOUNT</th><th>STATUS</th><th /></tr></thead>
+          <tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button className="invoice-number-link" onClick={() => onInvoice(invoice)}>{invoice.number}</button><small className="table-secondary">Due {shortDate(invoice.due_on)}</small></td><td>{shortDate(invoice.issued_on)}</td><td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} remaining` : "Paid in full"}</small></td><td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.paid_paise ? "partial" : invoice.status}>{invoice.balance_paise === 0 ? "Paid" : invoice.paid_paise ? "Partial" : "Due"}</Status></td><td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View invoice</button></td></tr>)}</tbody>
+        </table></div> : <div className="table-empty portal-empty"><span className="empty-check"><Icon name="receipt" /></span><div><strong>No invoices yet</strong><small>Your invoices will appear here after your next billing run.</small></div></div>}
+      </section>
       <footer className="portal-footer">Secure customer portal <span>·</span> Need help? <a href="mailto:hello@brightloop.in">Contact Brightloop</a></footer>
     </>
   );
@@ -866,9 +878,15 @@ function DataEditor({ type, busy, error, customers, plans, products, taxes, disc
 function App() {
   const [page, setPage] = useState("overview");
   const [user, setUser] = useState(null);
+  const [resetContext, setResetContext] = useState(() => {
+    const url = new URL(window.location.href);
+    if (url.pathname !== "/reset-password" && !url.searchParams.has("uid") && !url.searchParams.has("token")) return null;
+    return { uid: url.searchParams.get("uid") || "", token: url.searchParams.get("token") || "" };
+  });
   const [authRestoring, setAuthRestoring] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
   const [dataLoading, setDataLoading] = useState(false);
   const [dataErrors, setDataErrors] = useState({});
   const [operationError, setOperationError] = useState("");
@@ -889,6 +907,9 @@ function App() {
   const [paymentMethod, setPaymentMethod] = useState("bank");
   const [actionBusy, setActionBusy] = useState(false);
   const [editor, setEditor] = useState("");
+  const [addonSubscription, setAddonSubscription] = useState(null);
+  const [addonProducts, setAddonProducts] = useState([]);
+  const [addonOptionsLoading, setAddonOptionsLoading] = useState(false);
   const [printInvoice, setPrintInvoice] = useState(null);
   const [search, setSearch] = useState("");
   const dataRequestId = useRef(0);
@@ -977,6 +998,10 @@ function App() {
   }, [customerMode, user]);
 
   useEffect(() => {
+    if (resetContext) {
+      setAuthRestoring(false);
+      return;
+    }
     const token = getToken();
     if (!token) {
       setAuthRestoring(false);
@@ -991,7 +1016,7 @@ function App() {
       })
       .finally(() => { if (active) setAuthRestoring(false); });
     return () => { active = false; };
-  }, []);
+  }, [resetContext]);
 
   useEffect(() => {
     if (user && !authRestoring) void loadData();
@@ -1000,6 +1025,7 @@ function App() {
   async function submitAuth(mode, values) {
     setAuthBusy(true);
     setAuthError("");
+    setAuthSuccess("");
     try {
       if (mode === "register") {
         await apiRequest("/api/auth/register", {
@@ -1026,6 +1052,46 @@ function App() {
     } finally {
       setAuthBusy(false);
     }
+  }
+
+  async function requestPasswordReset(email) {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      await apiRequest("/api/auth/password-reset/request", {
+        method: "POST",
+        token: null,
+        body: { email },
+      });
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function confirmPasswordReset(values) {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      await apiRequest("/api/auth/password-reset/confirm", {
+        method: "POST",
+        token: null,
+        body: values,
+      });
+      dataRequestId.current += 1;
+      clearToken();
+      setUser(null);
+      setResetContext(null);
+      setAuthSuccess("Password updated. Sign in with your new password.");
+      window.history.replaceState({}, "", "/");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  function exitPasswordReset() {
+    if (!resetContext) return;
+    setResetContext(null);
+    window.history.replaceState({}, "", "/");
   }
 
   function showNotice(message) {
@@ -1080,6 +1146,46 @@ function App() {
       () => apiRequest(`/api/invoices/${invoice.id}/confirm`, { method: "POST", body: {} }),
       () => `${invoice.number} confirmed and ready for payment.`,
     );
+  }
+
+  async function performInvoiceAction(invoice, action) {
+    if (action === "cancel" && !window.confirm(`Cancel ${invoice.number}? This cannot be undone.`)) return;
+    if (action === "reissue" && !window.confirm(`Create a new revision of ${invoice.number} using its saved invoice snapshot?`)) return;
+    const messages = {
+      send: (result) => `${result.number} sent to the customer.`,
+      cancel: (result) => `${result.number} cancelled.`,
+      reissue: (result) => `${invoice.number} reissued as ${result.number}.`,
+    };
+    await perform(
+      () => apiRequest(`/api/invoices/${invoice.id}/${action}`, { method: "POST", body: {} }),
+      messages[action],
+    );
+  }
+
+  async function openAddonEditor(subscription) {
+    setOperationError("");
+    setAddonProducts([]);
+    setAddonSubscription(subscription);
+    setAddonOptionsLoading(true);
+    try {
+      const options = await apiList(`/api/subscriptions/${subscription.id}/addons`);
+      setAddonProducts(options);
+    } catch (error) {
+      setAddonSubscription(null);
+      setOperationError(error.message);
+    } finally {
+      setAddonOptionsLoading(false);
+    }
+  }
+
+  async function saveAddonLines(lines) {
+    const subscription = addonSubscription;
+    if (!subscription) return;
+    const result = await perform(
+      () => apiRequest(`/api/subscriptions/${subscription.id}`, { method: "PATCH", body: { lines } }),
+      () => "Subscription items updated. Billing due today was calculated using the previous items.",
+    );
+    if (result) setAddonSubscription(null);
   }
 
   async function transitionSubscription(id, action) {
@@ -1235,8 +1341,9 @@ function App() {
     setPrintInvoice(null);
   }
 
+  if (resetContext) return <Auth onLogin={submitAuth} onPasswordResetRequest={requestPasswordReset} onPasswordResetConfirm={confirmPasswordReset} onExitReset={exitPasswordReset} resetContext={resetContext} busy={authBusy} error={authError} successNotice={authSuccess} />;
   if (authRestoring) return <main className="auth-page"><div className="auth-loading" role="status">Restoring your secure session…</div></main>;
-  if (!user) return <Auth onLogin={submitAuth} busy={authBusy} error={authError} />;
+  if (!user) return <Auth onLogin={submitAuth} onPasswordResetRequest={requestPasswordReset} onPasswordResetConfirm={confirmPasswordReset} onExitReset={exitPasswordReset} busy={authBusy} error={authError} successNotice={authSuccess} />;
   if (printInvoice) return <InvoicePrint invoice={printInvoice} onClose={() => setPrintInvoice(null)} />;
 
   const visibleNavItems = customerMode ? [] : navItems.filter((item) => item.id !== "customers" || user.role === "admin");
@@ -1274,11 +1381,11 @@ function App() {
           {Object.keys(dataErrors).length > 0 && <div className="api-alert" role="alert"><strong>Some data could not be loaded</strong><span>{Object.entries(dataErrors).map(([name, error]) => `${name}: ${error}`).join(" · ")}</span><button className="api-retry" onClick={() => void loadData()}>Retry</button></div>}
           {operationError && <div className="api-alert" role="alert"><strong>Action could not be completed</strong><span>{operationError}</span><button className="api-retry" onClick={() => setOperationError("")}>Dismiss</button></div>}
           {dataLoading && <div className="loading-banner" role="status">Loading the latest data from Brightloop…</div>}
-          {customerMode ? <CustomerPortal user={user} subscriptions={subscriptions} invoices={invoices} onAction={transitionSubscription} onInvoice={setPrintInvoice} /> :
+          {customerMode ? <CustomerPortal user={user} subscriptions={subscriptions} invoices={invoices} onAction={transitionSubscription} onInvoice={setPrintInvoice} onManageLines={openAddonEditor} busy={actionBusy || addonOptionsLoading} /> :
             page === "overview" ? <Overview preview={preview} dashboard={dashboard} invoices={invoices} subscriptions={subscriptions} runResult={runResult} onRun={runBilling} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onNavigate={navigate} loading={dataLoading} /> :
             page === "subscriptions" ? <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} /> :
             page === "quotations" ? <Quotations subscriptions={subscriptions} customers={customers} plans={plans} products={products} onCreate={() => setEditor("quotation")} /> :
-            page === "invoices" ? <Invoices invoices={filteredInvoices} onConfirm={confirmInvoice} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
+            page === "invoices" ? <Invoices invoices={filteredInvoices} canManage={user.role === "admin" || user.role === "staff"} busy={actionBusy} onConfirm={confirmInvoice} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onAction={performInvoiceAction} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
             page === "catalog" ? <Catalog products={products} plans={plans} taxes={taxes} discounts={discounts} templates={templates} subscriptions={subscriptions} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} onCreateExtra={(type) => { setOperationError(""); setEditor(type); }} /> :
             user.role === "admin" ? <Customers customers={customers} invoices={invoices} canAdd onAdd={() => setEditor("customer")} onCustomer={() => showNotice("Choose a customer record to review their billing data.")} /> :
             <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} />}
@@ -1298,6 +1405,7 @@ function App() {
       {editor && (["variant", "tax", "discount", "template"].includes(editor)
         ? <CatalogEditor type={editor} products={products} plans={plans} busy={actionBusy} error={operationError} onClose={() => { setEditor(""); setOperationError(""); }} onSave={createCatalogExtra} />
         : <DataEditor type={editor} busy={actionBusy} error={operationError} customers={customers} plans={plans} products={products} taxes={taxes} discounts={discounts} templates={templates} onClose={() => { setEditor(""); setOperationError(""); }} onCreateProduct={(values) => createCatalogRecord("product", values)} onCreatePlan={(values) => createCatalogRecord("plan", values)} onCreateQuotation={createQuotation} onRegisterCustomer={registerCustomer} />)}
+      {addonSubscription && <CustomerAddonEditor subscription={addonSubscription} products={addonProducts} optionsLoading={addonOptionsLoading} busy={actionBusy} error={operationError} onClose={() => { if (!actionBusy) setAddonSubscription(null); }} onSave={saveAddonLines} />}
     </div>
   );
 }

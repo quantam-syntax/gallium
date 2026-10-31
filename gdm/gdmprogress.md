@@ -5,7 +5,11 @@
 - Added a responsive catalog summary and richer product/variant cards with subtle motion and reduced-motion support.
 - Admin forms now create variants, taxes, fixed/percentage discounts, and multi-line quotation templates through the live API. Product and plan forms expose tax and availability/permission settings. Quotation creation can use a saved template and assign a subscription discount.
 - Browser-verified variant, tax, discount, and template creation; removed the temporary verification records. `npm run build` passes.
-- Next for Gauthami: password reset, customer add-on/quantity edit, and invoice send/cancel/reissue screens. Validate each with backend role checks and a build. Keep UI changes in `gdm/` and ask GSK to integrate root changes.
+- Added public password-reset request and confirmation forms, including the emailed-link flow, password confirmation, generic account-existence messaging, and return to sign-in after reset.
+- Added customer-facing product/variant and quantity editing for every active, unexpired subscription. The editor uses the owner-scoped add-on endpoint and sends a complete line replacement; the backend retains negotiated prices and settles due periods under the previous items.
+- Added staff/admin invoice send/resend, cancellation, and cancelled-invoice reissue actions, with controls shown only for eligible statuses and backend validation errors surfaced.
+- `npm run build` passes and the login, forgot-password, and reset-link screens have been browser-smoke-tested.
+- Remaining: rehearse the integrated flow with the team and capture the requested demo recording once the backend/demo environment and participants are available.
 
 ## Done
 
@@ -19,8 +23,10 @@
   for display.
 - Added authenticated forms for products, plans, quotations, and customer
   registration. Subscription actions use the backend-provided
-  `permitted_actions`; customer screens are read-only.
+  `permitted_actions`; customers can also edit product lines and quantities on
+  their own active, unexpired subscriptions.
 - Added a print view that renders each invoice from its saved `snapshot`.
+- Added password recovery, customer subscription line editing, and staff invoice send/cancel/reissue controls.
 - Prevented stale in-flight requests from populating state after a later refresh
   or sign-out.
 - GSK's live browser walkthrough found that draft invoices had no Confirm
@@ -31,9 +37,10 @@
 ## Integration gaps
 
 - GSK now registers ALIAR routes; the core API-backed browser path works.
-- Password-reset and customer add-on/quantity screens are still pending after
-  YASCN's Phase 2 API delivery. Invoice send/cancel/reissue controls are also
-  not yet exposed in the staff UI.
+- Full end-to-end verification for password reset, customer line editing, and
+  invoice delivery/cancellation/reissue requires a running integrated backend
+  and usable demo accounts.
+- Final team demo rehearsal and recording remain outstanding.
 - There is no customer-directory API route yet. The staff customer list is
   derived from invoices and subscriptions; accounts created in the current
   session are additionally available for quotation creation.
@@ -41,6 +48,7 @@
 ## Verification
 
 - `npm run build` in `gdm/`: passed with Vite 6.4.5.
+- Browser smoke checks: login, forgot-password, and reset-link forms render and navigate correctly.
 - GSK completed the live browser walkthrough, then verified the new Confirm
   button against a real draft invoice: it changed to confirmed and exposed
   Record payment. `npm run build` passed after the change.
