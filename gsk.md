@@ -1,5 +1,7 @@
 # GSK — team lead and billing engine
 
+**Read [CONTRACT.md](CONTRACT.md) first.** It is the single source of truth for models, statuses, routes, response shapes, and billing rules. Update it before any shared interface changes; tell all three teammates when it changes.
+
 ## What we are building
 
 Brightloop is a subscription software company currently tracking customers, renewals, invoices, payments, and revenue by hand. We are building one local web app where an admin configures products and plans, staff manage quotations and billing, and customers manage their own subscriptions and view invoices. The stack is Django REST Framework, SQLite, and React/Vite; this is a working hackathon demo, not a collection of disconnected screens.
@@ -20,18 +22,14 @@ Own the hardest path: turn an active subscription into one correct invoice for e
 
 - In the first 30 minutes, create the Django REST Framework project skeleton and a minimal React/Vite interface contract, agree on the API contract below, and provide mock JSON to GDM. GDM owns the actual frontend in `gdm/`.
 - Implement `GET /api/billing/preview` and `POST /api/billing/run`. Preview shows due subscriptions, expected invoice totals, and actionable exceptions; run creates invoices and returns created/skipped/error counts.
-- Put preview and run on the same calculation service. Invoice the plan base fee plus product, variant, and add-on lines. Use integer paise, apply the best eligible product discount **or** whole-subscription discount, then calculate percentage tax on the discounted amount.
+- Put preview and run on the same calculation service. Invoice the plan base fee plus effective product/add-on line prices, which already include variant surcharges. Use integer paise, apply the best eligible product discount **or** whole-subscription discount, then calculate percentage tax on the discounted amount.
 - Make billing idempotent with a unique subscription-and-period key. Catch up missed periods; skip paused or expired cycles. Save invoice line, tax, and discount snapshots.
-- Expose a scheduled management command using the same billing service. A UI button may call the run endpoint for the demo.
+- After the hour-6 demo gate, expose a scheduled management command using the same billing service. The UI run button drives the core demo.
 - Integrate YASCN's subscription data and ALIAR's invoice model. Resolve interface mismatches, run the end-to-end smoke test, seed the demonstration story, record the video, and submit the single-branch repository.
 
 ## Shared contract to lock at 0:30
 
-- JSON endpoints live under `/api`; authentication uses a token returned by `/api/auth/login` and sent as `Authorization: Token <token>`.
-- Money is integer paise in storage and API responses; the UI formats INR. Dates are ISO `YYYY-MM-DD`; timestamps include a timezone.
-- Subscription states: `draft`, `quotation`, `confirmed`, `active`, `paused`, `expired`, `closed`. Invoice states: `draft`, `confirmed`, `paid`, `cancelled`; a partially paid confirmed invoice retains `confirmed` status and exposes `balance_paise`.
-- Standard list responses: `{ "results": [...], "count": 0, "next": null, "previous": null }`. Errors: `{ "detail": "..." }` or field-specific validation errors.
-- Brightloop is one business. Customers see only their own records. Admin owns catalog and discount configuration; staff handle quotations, subscriptions, invoices, and payments.
+Freeze the custom user model, subscription fields, invoice creation interface, endpoint examples, and ownership with the team before the first migration. Use [CONTRACT.md](CONTRACT.md); do not maintain a separate copy here.
 
 ## Completion check
 
@@ -39,8 +37,8 @@ Run billing twice against the same due subscription: the first run creates one i
 
 ## Phase 1 — foundation and contract (hours 0–4)
 
-- By 0:30, scaffold both apps and freeze model ownership, endpoint paths, JSON examples, status values, and the invoice creation interface with all three teammates.
-- Build billing calculations and preview against seed data. Add the subscription-and-period uniqueness constraint before implementing the run action.
+- By 0:30, scaffold the Django project and API wiring, freeze model ownership and the invoice creation interface, and give GDM contract-shaped mock JSON. GDM owns the React app in `gdm/`.
+- Build billing calculations and preview against seed data. Coordinate ALIAR's subscription-and-period uniqueness constraint before implementing the run action.
 - Run the phase gate with the team: fresh database migration, Django system check, API login and ownership smoke tests, preview calculation against a known expected total, and React build. Record any failing check in one shared issue list and fix it before Phase 2.
 
 ## Phase 2 — integration and core verification (hours 4–6)

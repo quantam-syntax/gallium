@@ -1,5 +1,7 @@
 # ALIAR — invoices, payments, and finance backend
 
+**Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for invoice fields, statuses, routes, response fields, and duplicate prevention; tell GSK before changing an interface.
+
 ## What we are building
 
 Brightloop is a subscription software company currently tracking customers, renewals, invoices, payments, and revenue by hand. We are building one local web app where an admin configures products and plans, staff manage quotations and billing, and customers manage their own subscriptions and view invoices. The stack is Django REST Framework, SQLite, and React/Vite; this is a working hackathon demo, not a collection of disconnected screens.
@@ -18,16 +20,16 @@ Make generated invoices actionable and show what Brightloop has collected and wh
 
 ## Build
 
-- Own invoice and payment models. Invoice stores customer/subscription reference, unique subscription-and-period key, issue/due dates, immutable line and calculation snapshots, subtotal/discount/tax/total in paise, and state.
+- Own invoice and payment models. Invoice stores customer/subscription reference, period and revision constraints from the contract, issue/due dates, immutable line and calculation snapshots, subtotal/discount/tax/total in paise, and state.
 - Expose staff actions to confirm, cancel, send, print, and explicitly reissue a cancelled invoice. Preserve cancelled records; at most one non-cancelled invoice may exist for a subscription period.
 - Record multiple payments against an invoice with method, amount, date, and note. Reject nonpositive or over-balance payments. Derive `balance_paise`; set `paid` only when balance reaches zero.
 - Show outstanding and overdue invoices using due date and remaining balance. A cancelled invoice is excluded from revenue and balances.
-- Implement `GET /api/dashboard` with filters for dates and status: active subscription count, invoiced revenue, payments received, outstanding amount, overdue count, and monthly recurring revenue. Use indexed, paginated queries rather than loading every record into Python.
+- Implement `GET /api/dashboard` with the contract's date filters and metrics, including gross MRR from GSK's shared calculation. Use indexed, paginated queries rather than loading every record into Python.
 - Provide seed data for one clear demonstration story and enough generated records for a basic performance check. Add targeted tests for partial payments, overdue status, invoice actions, and customer ownership.
 
 ## API handoffs
 
-Own `/api/invoices`, `/api/invoices/{id}/confirm`, `/api/invoices/{id}/cancel`, `/api/invoices/{id}/send`, `/api/invoices/{id}/reissue`, `/api/invoices/{id}/payments`, and `/api/dashboard`. GSK alone owns invoice generation; provide the invoice creation interface and schema to GSK by 0:30. Follow the shared JSON, money, date, and status contract in `gsk.md`.
+Own the ALIAR routes in [CONTRACT.md](CONTRACT.md). GSK alone owns pricing and invoice generation; provide the invoice creation interface and schema to GSK by 0:30. Base reporting on saved invoice and payment amounts.
 
 ## Completion check
 
@@ -35,11 +37,11 @@ One invoice can receive two partial payments and show the correct remaining bala
 
 ## Phase 1 — invoice and payment foundation (hours 0–4)
 
-- By 0:30, agree on the invoice schema and creation interface with GSK. Build invoice/payment models, migrations, invoice actions, and a basic dashboard response.
+- By 0:30, agree on the invoice schema and creation interface with GSK. Prioritize invoice/payment models, migrations, list/detail/confirm, partial payments, derived balances, and a basic dashboard response.
 - At the phase gate, fresh migrations and Django checks must pass. Test a manually created invoice receiving two partial payments, a customer ownership check, and the unique active invoice-per-period rule. Fix schema and response mismatches before Phase 2.
 
 ## Phase 2 — generated invoices and reporting (hours 4–8)
 
-- Provide the invoice creation interface GSK can call and complete payments and dashboard totals inside `aliar/` by 6:00. Freeze new features then.
+- Provide the invoice creation interface GSK can call and complete payments and dashboard totals inside `aliar/` by 6:00. Freeze core features then. Add send, cancel/reissue refinements, print support, and broader report filters only after the integrated demo gate passes.
 - Verify cancellation/reissue, overdue balances, report filters, and a seeded performance check. Repeat the Phase 1 tests after integration and resolve blocking defects by 7:00.
 - Prepare demo data and support the final walkthrough in the last hour.

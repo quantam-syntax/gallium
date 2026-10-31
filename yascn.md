@@ -1,5 +1,7 @@
 # YASCN — identity, catalog, and subscriptions backend
 
+**Read [CONTRACT.md](CONTRACT.md) first.** It is the source of truth for models, statuses, routes, response fields, and the billing cursor; tell GSK before changing an interface.
+
 ## What we are building
 
 Brightloop is a subscription software company currently tracking customers, renewals, invoices, payments, and revenue by hand. We are building one local web app where an admin configures products and plans, staff manage quotations and billing, and customers manage their own subscriptions and view invoices. The stack is Django REST Framework, SQLite, and React/Vite; this is a working hackathon demo, not a collection of disconnected screens.
@@ -27,7 +29,7 @@ Provide the accounts and catalog that the billing engine consumes. Own subscript
 
 ## API handoffs
 
-Own `/api/auth/*`, `/api/products`, `/api/plans`, `/api/taxes`, `/api/discounts`, `/api/templates`, and `/api/subscriptions`. Provide GSK with a query for due active subscriptions and a stable way to read current plan fee, lines, taxes, discounts, next billing date, and lifecycle permissions. Follow GSK's shared JSON, money, date, and status contract.
+Own the YASCN routes in [CONTRACT.md](CONTRACT.md). Provide GSK with a query for due active subscriptions and stable access to plan fee, lines, taxes, discounts, next billing date, and permissions. Define the custom User before the first migration and include `/api/auth/me` for UI refresh.
 
 ## Completion check
 
@@ -35,11 +37,11 @@ Prove a customer cannot read another customer's subscription, staff cannot creat
 
 ## Phase 1 — models and core endpoints (hours 0–4)
 
-- By 0:30, agree on schema and JSON examples with GSK and ALIAR. Deliver accounts, roles, catalog, plan, template, and subscription models plus the endpoints needed for the seeded story.
+- By 0:30, agree on schema and JSON examples with GSK and ALIAR. Prioritize the custom User, roles, one product/variant, plan, tax/discount, template, and active subscription needed for the seeded story.
 - At the phase gate, migrations must work on a fresh database, Django checks must pass, and API tests must show admin setup, customer ownership, valid login, and one active subscription with correct lines. Fix contract mismatches before Phase 2.
 
 ## Phase 2 — lifecycle and integration (hours 4–8)
 
-- Expose the subscription query GSK's billing service needs and finish permitted pause, renew, cancel, expiry, and next-cycle edits inside `yascn/` by 6:00. Freeze new features then.
+- Expose the subscription query GSK's billing service needs and complete quotation-to-active transitions by 6:00. Freeze core features then. Add password reset and remaining pause, renew, cancel, expiry, and next-cycle edit flows only after the integrated demo gate passes.
 - Test password reset, quote expiry, invalid transitions, minimum quantity, and role restrictions. Repeat migrations and checks after integration; resolve blocking defects by 7:00.
 - Support the final seeded demo and README in the last hour.
