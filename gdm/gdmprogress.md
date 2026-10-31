@@ -2,48 +2,32 @@
 
 ## Done
 
-- Created an isolated React/Vite frontend starter in `gdm/`.
-- Built responsive staff views for the Billing Control Tower, subscriptions,
-  quotations, invoices, catalog, and customers.
-- Built a customer portal view with subscription controls and invoice/payment
-  access, scoped to the seeded demo customer.
-- Added contract-shaped preview/run data, INR formatting from paise, billing-run
-  results, partial-payment validation, and local subscription transitions.
-- Added empty states, search, responsive navigation, and print-friendly layout
-  rules.
-- GSK visual review added a distinct billing control tower, stronger typography,
-  responsive cards, and a collection-health view. Dashboard totals and catalog
-  subscriber counts now come from the current demo records rather than unrelated
-  placeholder figures.
+- Built the responsive Brightloop Control Tower, staff billing screens, and
+  customer portal using GSK's updated visual design.
+- Added token-based login and registration, session restoration through
+  `/api/auth/me`, explicit API errors, loading states, and authenticated
+  paginated list requests.
+- Connected subscriptions, products, plans, invoices, dashboard and billing
+  preview/run data to the API. Money remains in integer paise until formatted
+  for display.
+- Added authenticated forms for products, plans, quotations, and customer
+  registration. Subscription actions use the backend-provided
+  `permitted_actions`; customer screens are read-only.
+- Added a print view that renders each invoice from its saved `snapshot`.
+- Prevented stale in-flight requests from populating state after a later refresh
+  or sign-out.
 
-## Next
+## Integration gaps
 
-- Replace in-memory demo state with the shared API, including `/api/auth/me`
-  after refresh and backend-provided `permitted_actions`.
-- Add loading/error handling, pagination, and API-backed product, plan, and
-  quotation forms.
-- Verify role navigation, refresh persistence, invoice print output, and a
-  second no-op billing run against the integrated backend.
-
-## Blocked
-
-- API integration is blocked until the backend endpoints are available together
-  for the seeded demo. The current interactions use local in-memory demo data.
-
-## API response mismatches
-
-- None observed; the UI has not called the API yet.
+- The current root URL configuration registers YASCN and billing routes, but
+  does not yet register ALIAR invoice, payment, or dashboard URLs. The UI
+  reports those endpoint failures explicitly rather than substituting demo data.
+- There is no customer-directory API route yet. The staff customer list is
+  derived from invoices and subscriptions; accounts created in the current
+  session are additionally available for quotation creation.
 
 ## Verification
 
-- `npm run build`: passed with Vite 6.4.5; production bundle generated successfully.
-- GSK review added a local `/api` proxy to the Django server on `127.0.0.1:8000`; `npm run build` still passes.
-- GSK visual review checked Chromium screenshots at desktop and mobile widths;
-  `npm run build` passes after the design changes.
-- In the browser demo, the first billing run created one invoice and cleared the
-  preview; a second run created none.
-
-## Commands for GSK
-
-- Start: `cd gdm && npm run dev`
-- Build: `cd gdm && npm run build`
+- `npm run build` in `gdm/`: passed with Vite 6.4.5.
+- End-to-end API and browser validation remains pending until the required
+  backend routes are registered and available.

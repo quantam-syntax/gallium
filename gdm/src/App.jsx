@@ -1,111 +1,7 @@
-import { useMemo, useState } from "react";
-
-const initialPreview = {
-  as_of: "2026-10-31",
-  due_count: 1,
-  expected_total_paise: 184080,
-  items: [
-    {
-      subscription_id: 12,
-      number: "SUB-0012",
-      customer_name: "Example Shop",
-      period_start: "2026-10-31",
-      period_end: "2026-11-30",
-      subtotal_paise: 156000,
-      discount_paise: 0,
-      tax_paise: 28080,
-      total_paise: 184080,
-      issues: [],
-    },
-  ],
-  exceptions: [],
-};
-
-const initialInvoices = [
-  {
-    id: 24,
-    number: "INV-0024",
-    customer_name: "Northstar Studio",
-    subscription: "SUB-0008",
-    issued_on: "2026-10-21",
-    due_on: "2026-10-28",
-    total_paise: 106200,
-    paid_paise: 50000,
-    balance_paise: 56200,
-    status: "confirmed",
-    is_overdue: true,
-  },
-  {
-    id: 23,
-    number: "INV-0023",
-    customer_name: "Copper & Co",
-    subscription: "SUB-0004",
-    issued_on: "2026-10-01",
-    due_on: "2026-10-08",
-    total_paise: 51330,
-    paid_paise: 51330,
-    balance_paise: 0,
-    status: "paid",
-    is_overdue: false,
-  },
-];
-
-const initialSubscriptions = [
-  {
-    id: 12,
-    number: "SUB-0012",
-    customer: "Example Shop",
-    plan: "Growth monthly",
-    status: "active",
-    start_date: "2026-10-01",
-    next_bill_date: "2026-10-31",
-    mrr_paise: 156000,
-    permitted_actions: ["pause", "renew", "close"],
-    items: "Growth plan + Odoo variant",
-  },
-  {
-    id: 8,
-    number: "SUB-0008",
-    customer: "Northstar Studio",
-    plan: "Scale monthly",
-    status: "active",
-    start_date: "2026-08-21",
-    next_bill_date: "2026-11-21",
-    mrr_paise: 90000,
-    permitted_actions: ["pause", "renew", "close"],
-    items: "Scale plan",
-  },
-  {
-    id: 4,
-    number: "SUB-0004",
-    customer: "Copper & Co",
-    plan: "Starter monthly",
-    status: "paused",
-    start_date: "2026-06-01",
-    next_bill_date: "—",
-    mrr_paise: 48500,
-    permitted_actions: ["resume", "renew", "close"],
-    items: "Starter plan",
-  },
-];
-
-const customers = [
-  { name: "Example Shop", initials: "ES", email: "hello@exampleshop.in", subs: 1, color: "lavender" },
-  { name: "Northstar Studio", initials: "NS", email: "finance@northstar.studio", subs: 1, color: "mint" },
-  { name: "Copper & Co", initials: "CC", email: "accounts@copper.co", subs: 1, color: "peach" },
-];
-
-const productRows = [
-  { name: "Odoo integration", type: "Service", detail: "Variant · standard setup", price: 56000, state: "Active", icon: "◈", color: "lavender" },
-  { name: "Priority support", type: "Service", detail: "Monthly add-on", price: 25000, state: "Active", icon: "✳", color: "mint" },
-  { name: "Onboarding session", type: "One-time", detail: "Remote · 90 minutes", price: 120000, state: "Active", icon: "↗", color: "peach" },
-];
-
-const planRows = [
-  { name: "Growth monthly", cadence: "Billed monthly", price: 100000, state: "Available" },
-  { name: "Scale monthly", cadence: "Billed monthly", price: 90000, state: "Available" },
-  { name: "Starter monthly", cadence: "Billed monthly", price: 48500, state: "Available" },
-];
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Auth from "./Auth.jsx";
+import InvoicePrint from "./InvoicePrint.jsx";
+import { apiList, apiRequest, clearToken, getToken, storeToken } from "./api.js";
 
 const navItems = [
   { id: "overview", label: "Overview", icon: "grid" },
@@ -153,6 +49,92 @@ function money(paise) {
   }).format(paise / 100);
 }
 
+function dateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeSubscription(subscription, plans, products, invoices, user) {
+  const planId = typeof subscription.plan === "object" ? subscription.plan.id : subscription.plan;
+  const plan = plans.find((item) => item.id === planId);
+  const customerId = typeof subscription.customer === "object" ? subscription.customer.id : subscription.customer;
+  const linkedInvoice = invoices.find((invoice) => invoice.customer_id === customerId);
+  const customerName = user.role === "customer"
+    ? user.company_name || user.full_name
+    : linkedInvoice?.customer_name || (typeof subscription.customer === "object"
+      ? subscription.customer.full_name || subscription.customer.email
+      : `Customer #${customerId}`);
+  const lineValue = (subscription.lines || []).reduce((total, line) =>
+    total + (line.unit_price_paise || 0) * (line.quantity || 0), 0);
+  const lines = (subscription.lines || []).map((line) => {
+    const productId = typeof line.product_id === "object" ? line.product_id.id : line.product_id;
+    const variantId = typeof line.variant_id === "object" ? line.variant_id.id : line.variant_id;
+    const product = products.find((item) => item.id === productId);
+    const variant = product?.variants?.find((item) => item.id === variantId);
+    return {
+      ...line,
+      description: variant ? `${product?.name || "Product"} · ${variant.name}` : product?.name || "Product",
+    };
+  });
+
+  return {
+    ...subscription,
+    customer_id: customerId,
+    customer: customerName,
+    plan_id: planId,
+    plan: plan?.name || `Plan #${planId}`,
+    frequency: plan?.frequency || "",
+    mrr_paise: (plan?.base_price_paise || 0) + lineValue,
+    lines,
+    permitted_actions: subscription.permitted_actions || [],
+  };
+}
+
+function normalizeInvoice(invoice, subscriptions) {
+  const subscription = subscriptions.find((item) => item.id === invoice.subscription_id);
+  return {
+    ...invoice,
+    subscription: subscription?.number || `Subscription #${invoice.subscription_id}`,
+  };
+}
+
+function catalogCustomers(invoices, subscriptions, currentUser) {
+  const customersById = new Map();
+  for (const invoice of invoices) {
+    if (invoice.customer_id) {
+      customersById.set(invoice.customer_id, {
+        id: invoice.customer_id,
+        name: invoice.customer_name,
+        email: "",
+      });
+    }
+  }
+  for (const subscription of subscriptions) {
+    if (subscription.customer_id && !customersById.has(subscription.customer_id)) {
+      customersById.set(subscription.customer_id, {
+        id: subscription.customer_id,
+        name: subscription.customer,
+        email: "",
+      });
+    }
+  }
+  if (currentUser.role === "customer") {
+    customersById.set(currentUser.id, {
+      id: currentUser.id,
+      name: currentUser.company_name || currentUser.full_name,
+      email: currentUser.email,
+    });
+  }
+  return [...customersById.values()].map((customer, index) => ({
+    ...customer,
+    initials: customer.name.split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase(),
+    subs: subscriptions.filter((subscription) => subscription.customer_id === customer.id).length,
+    color: ["lavender", "mint", "peach"][index % 3],
+  }));
+}
+
 function shortDate(date) {
   if (!date || date === "—") return "—";
   return new Intl.DateTimeFormat("en-IN", {
@@ -167,16 +149,16 @@ function Status({ children, tone }) {
   return <span className={`status status-${statusTone}`}>{children}</span>;
 }
 
-function Button({ children, kind = "secondary", icon, onClick, className = "", type = "button" }) {
+function Button({ children, kind = "secondary", icon, onClick, className = "", type = "button", disabled = false }) {
   return (
-    <button className={`button button-${kind} ${className}`} onClick={onClick} type={type}>
+    <button className={`button button-${kind} ${className}`} onClick={onClick} type={type} disabled={disabled}>
       {icon && <Icon name={icon} size={16} />}
       {children}
     </button>
   );
 }
 
-function App() {
+function LegacyDemoApp() {
   const [page, setPage] = useState("overview");
   const [customerMode, setCustomerMode] = useState(false);
   const [preview, setPreview] = useState(initialPreview);
@@ -449,13 +431,21 @@ function App() {
   );
 }
 
-function Overview({ preview, invoices, subscriptions, runResult, onRun, onPayment, onNavigate }) {
-  const paid = invoices.reduce((sum, invoice) => sum + invoice.paid_paise, 0);
-  const outstanding = invoices.reduce((sum, invoice) => sum + invoice.balance_paise, 0);
-  const overdue = invoices.filter((invoice) => invoice.is_overdue && invoice.balance_paise > 0).length;
-  const monthInvoiced = invoices.reduce((sum, invoice) => sum + invoice.total_paise, 0);
+function Overview({ preview: loadedPreview, dashboard, invoices, subscriptions, runResult, onRun, onPayment, onNavigate, loading }) {
+  const preview = loadedPreview || {
+    as_of: dateInputValue(new Date()),
+    due_count: 0,
+    expected_total_paise: 0,
+    items: [],
+    exceptions: [],
+  };
+  const paid = dashboard?.collected_paise ?? 0;
+  const outstanding = dashboard?.outstanding_paise ?? 0;
+  const overdue = dashboard?.overdue_count ?? 0;
+  const monthInvoiced = dashboard?.invoiced_paise ?? 0;
   const activeSubscriptions = subscriptions.filter((subscription) => subscription.status === "active");
-  const grossMrr = activeSubscriptions.reduce((sum, subscription) => sum + subscription.mrr_paise, 0);
+  const activeCount = dashboard?.active_count ?? activeSubscriptions.length;
+  const grossMrr = dashboard?.gross_mrr_paise ?? 0;
 
   return (
     <div className="overview-page">
@@ -463,7 +453,7 @@ function Overview({ preview, invoices, subscriptions, runResult, onRun, onPaymen
         <div className="hero-orbit" aria-hidden="true" />
         <div className="welcome-strip">
           <div><span className="welcome-sun">✳</span> {shortDate(preview.as_of)} <span className="strip-divider">·</span> Revenue operations</div>
-          <span className="demo-label"><span /> LIVE DEMO</span>
+          <span className="demo-label"><span /> LIVE WORKSPACE</span>
         </div>
         <div className="hero-body">
           <div className="hero-copy">
@@ -471,7 +461,7 @@ function Overview({ preview, invoices, subscriptions, runResult, onRun, onPaymen
             <h1>Billing control <em>tower.</em></h1>
             <p className="hero-description">See every renewal before it runs. Turn complex billing into a clear, confident next step.</p>
             <div className="hero-actions">
-              <Button kind="primary" icon="repeat" onClick={onRun}>Run billing</Button>
+              <Button kind="primary" icon="repeat" onClick={onRun} disabled={loading}>{loading ? "Loading…" : "Run billing"}</Button>
               <button className="hero-text-action" onClick={() => document.getElementById("preview-table")?.scrollIntoView({ behavior: "smooth", block: "center" })}>Explore this cycle <Icon name="chevron" size={16} /></button>
             </div>
           </div>
@@ -486,7 +476,7 @@ function Overview({ preview, invoices, subscriptions, runResult, onRun, onPaymen
       </div>
 
       <section className="metric-grid" aria-label="Business metrics">
-        <Metric label="Active subscriptions" value={activeSubscriptions.length} detail="Billing right now" icon="repeat" tone="blue" />
+        <Metric label="Active subscriptions" value={activeCount} detail="Billing right now" icon="repeat" tone="blue" />
         <Metric label="Gross monthly recurring" value={money(grossMrr)} detail="Before tax & discounts" icon="arrow" tone="purple" />
         <Metric label="Collected" value={money(paid)} detail="Recorded payments" icon="check" tone="green" />
         <Metric label="Outstanding balance" value={money(outstanding)} detail={`${overdue} overdue invoice${overdue === 1 ? "" : "s"}`} icon="clock" tone="amber" />
@@ -623,28 +613,35 @@ function Subscriptions({ subscriptions, onAction, onNavigate }) {
   );
 }
 
-function Quotations({ created, onCreate }) {
+function Quotations({ subscriptions, customers, plans, products, onCreate }) {
+  const quotations = subscriptions.filter((subscription) =>
+    ["draft", "quotation"].includes(subscription.status),
+  );
   return (
     <>
       <PageHeader eyebrow="SALES WORKFLOW" title="Quotations" subtitle="Turn a customer’s needs into a subscription, one step at a time." action={<Button kind="primary" icon="plus" onClick={onCreate}>Create quotation</Button>} />
       <section className="content-card list-card">
-        <div className="list-toolbar"><div><h2>Recent quotations</h2><span>{created ? 4 : 3} records</span></div><span className="select-chip">All statuses <span>⌄</span></span></div>
-        <div className="table-scroll"><table className="data-table full-table">
+        <div className="list-toolbar"><div><h2>Quotes & drafts</h2><span>{quotations.length} records</span></div><span className="select-chip">Subscription status <span>⌄</span></span></div>
+        {quotations.length ? <div className="table-scroll"><table className="data-table full-table">
           <thead><tr><th>QUOTE</th><th>CUSTOMER</th><th>PLAN</th><th>CREATED</th><th>VALID UNTIL</th><th>STATUS</th><th /></tr></thead>
-          <tbody>
-            {created && <tr><td><strong className="table-primary">QUO-0013</strong><small className="table-secondary">Created just now</small></td><td>Example Shop</td><td>Growth monthly</td><td>Oct 31, 2026</td><td>Nov 14, 2026</td><td><Status>draft</Status></td><td><button className="row-more" aria-label="Quotation actions"><Icon name="more" size={16} /></button></td></tr>}
-            <tr><td><strong className="table-primary">QUO-0012</strong><small className="table-secondary">SUB-0012</small></td><td>Example Shop</td><td>Growth monthly</td><td>Oct 16, 2026</td><td>Oct 30, 2026</td><td><Status tone="quotation">Sent</Status></td><td><button className="row-more" aria-label="Quotation actions"><Icon name="more" size={16} /></button></td></tr>
-            <tr><td><strong className="table-primary">QUO-0011</strong><small className="table-secondary">SUB-0010</small></td><td>Northstar Studio</td><td>Scale monthly</td><td>Oct 12, 2026</td><td>Oct 26, 2026</td><td><Status tone="active">Accepted</Status></td><td><button className="row-more" aria-label="Quotation actions"><Icon name="more" size={16} /></button></td></tr>
-            <tr><td><strong className="table-primary">QUO-0010</strong><small className="table-secondary">SUB-0008</small></td><td>Northstar Studio</td><td>Scale monthly</td><td>Oct 04, 2026</td><td>Oct 18, 2026</td><td><Status tone="expired">Expired</Status></td><td><button className="row-more" aria-label="Quotation actions"><Icon name="more" size={16} /></button></td></tr>
-          </tbody>
-        </table></div>
+          <tbody>{quotations.map((subscription) => {
+            const customer = customers.find((item) => item.id === subscription.customer_id);
+            const plan = plans.find((item) => item.id === subscription.plan_id);
+            return <tr key={subscription.id}>
+              <td><strong className="table-primary">{subscription.number}</strong><small className="table-secondary">Subscription quote</small></td>
+              <td>{customer?.name || subscription.customer}</td><td>{plan?.name || subscription.plan}</td>
+              <td>{shortDate(subscription.start_date)}</td><td>{subscription.quote_expires_at ? shortDate(subscription.quote_expires_at.slice(0, 10)) : "—"}</td>
+              <td><Status>{subscription.status}</Status></td><td>{products.length === 0 ? null : <span className="table-secondary">{subscription.lines?.length || 0} line items</span>}</td>
+            </tr>;
+          })}</tbody>
+        </table></div> : <div className="table-empty"><span className="empty-check"><Icon name="file" /></span><div><strong>No open quotations</strong><small>Create a quotation to start a customer subscription.</small></div></div>}
       </section>
       <div className="journey-note"><span className="modal-icon"><Icon name="spark" size={18} /></span><div><strong>From quote to recurring revenue</strong><p>When a customer accepts a quotation, activate their subscription and they’ll automatically appear in your next billing preview.</p></div></div>
     </>
   );
 }
 
-function Invoices({ invoices, onPayment, onPrint }) {
+function Invoices({ invoices, onPayment, onPrint, onInvoice }) {
   return (
     <>
       <PageHeader eyebrow="BILLING & PAYMENTS" title="Invoices" subtitle="Every invoice, payment, and outstanding balance in one place." action={<Button icon="file" onClick={onPrint}>Print</Button>} />
@@ -658,11 +655,11 @@ function Invoices({ invoices, onPayment, onPrint }) {
         {invoices.length ? <div className="table-scroll"><table className="data-table full-table">
           <thead><tr><th>INVOICE</th><th>CUSTOMER</th><th>ISSUED</th><th>DUE DATE</th><th>AMOUNT</th><th>STATUS</th><th /></tr></thead>
           <tbody>{invoices.map((invoice) => <tr key={invoice.id}>
-            <td><strong className="table-primary">{invoice.number}</strong><small className="table-secondary">{invoice.subscription}</small></td>
+            <td><button className="invoice-number-link" onClick={() => onInvoice(invoice)}>{invoice.number}</button><small className="table-secondary">{invoice.subscription}</small></td>
             <td>{invoice.customer_name}</td><td>{shortDate(invoice.issued_on)}</td><td>{shortDate(invoice.due_on)}</td>
             <td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} due` : "Paid in full"}</small></td>
             <td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.is_overdue ? "overdue" : "confirmed"}>{invoice.balance_paise === 0 ? "Paid" : invoice.is_overdue ? "Overdue" : invoice.paid_paise ? "Partial" : invoice.status}</Status></td>
-            <td>{invoice.balance_paise > 0 ? <button className="table-action-link" onClick={() => onPayment(invoice)}>Record payment</button> : <button className="row-more" aria-label={`Print ${invoice.number}`} onClick={() => window.print()}><Icon name="download" size={16} /></button>}</td>
+            <td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View / print</button>{invoice.balance_paise > 0 && <button className="table-action-link" onClick={() => onPayment(invoice)}>Record payment</button>}</td>
           </tr>)}</tbody>
         </table></div> : <div className="table-empty"><span className="empty-check"><Icon name="search" /></span><div><strong>No invoices found</strong><small>Try adjusting your search.</small></div></div>}
       </section>
@@ -670,38 +667,38 @@ function Invoices({ invoices, onPayment, onPrint }) {
   );
 }
 
-function Catalog({ subscriptions, onCreate }) {
+function Catalog({ products, plans, subscriptions, canManage, onCreateProduct, onCreatePlan }) {
   return (
     <>
-      <PageHeader eyebrow="YOUR OFFERING" title="Products & plans" subtitle="Keep your catalog tidy and your subscription plans clear." action={<Button kind="primary" icon="plus" onClick={onCreate}>Add to catalog</Button>} />
+      <PageHeader eyebrow="YOUR OFFERING" title="Products & plans" subtitle="Keep your catalog tidy and your subscription plans clear." action={canManage && <Button kind="primary" icon="plus" onClick={onCreateProduct}>Add product</Button>} />
       <section className="content-card list-card">
-        <div className="list-toolbar"><div><h2>Products & add-ons</h2><span>Services and one-time items customers can add</span></div><button className="subtle-link" onClick={onCreate}>Manage products <Icon name="chevron" size={14} /></button></div>
-        <div className="catalog-grid">{productRows.map((product) => <article className="catalog-item" key={product.name}>
-          <span className={`product-icon ${product.color}`}>{product.icon}</span><div className="catalog-main"><div className="catalog-topline"><strong>{product.name}</strong><Status tone="active">{product.state}</Status></div><p>{product.detail}</p><small>{product.type}</small></div><strong className="catalog-price">{money(product.price)}</strong>
-        </article>)}</div>
+        <div className="list-toolbar"><div><h2>Products & add-ons</h2><span>Services and one-time items customers can add</span></div><span className="select-chip">{products.length} products</span></div>
+        {products.length ? <div className="catalog-grid">{products.map((product, index) => <article className="catalog-item" key={product.id}>
+          <span className={`product-icon ${["lavender", "mint", "peach"][index % 3]}`}>{product.type?.slice(0, 1).toUpperCase() || "P"}</span><div className="catalog-main"><div className="catalog-topline"><strong>{product.name}</strong><Status tone={product.active ? "active" : "expired"}>{product.active ? "Active" : "Inactive"}</Status></div><p>{product.variants?.length ? product.variants.map((variant) => variant.name).join(", ") : product.notes || "No variants"}</p><small>{product.type}</small></div><strong className="catalog-price">{money(product.sale_price_paise)}</strong>
+        </article>)}</div> : <div className="table-empty"><span className="empty-check"><Icon name="box" /></span><div><strong>No products yet</strong><small>Catalog items added through the API will appear here.</small></div></div>}
       </section>
       <section className="content-card list-card plans-card">
-        <div className="list-toolbar"><div><h2>Subscription plans</h2><span>Recurring pricing your customers can count on</span></div><Button onClick={onCreate} icon="plus">Add plan</Button></div>
-        <div className="table-scroll"><table className="data-table full-table">
+        <div className="list-toolbar"><div><h2>Subscription plans</h2><span>Recurring pricing your customers can count on</span></div>{canManage && <Button onClick={onCreatePlan} icon="plus">Add plan</Button>}</div>
+        {plans.length ? <div className="table-scroll"><table className="data-table full-table">
           <thead><tr><th>PLAN</th><th>BILLING</th><th>BASE PRICE</th><th>SUBSCRIBERS</th><th>STATUS</th><th /></tr></thead>
-          <tbody>{planRows.map((plan) => <tr key={plan.name}><td><strong className="table-primary">{plan.name}</strong></td><td>{plan.cadence}</td><td><strong>{money(plan.price)}</strong></td><td>{subscriptions.filter((subscription) => subscription.plan === plan.name).length}</td><td><Status tone="active">{plan.state}</Status></td><td><button className="row-more" aria-label={`Edit ${plan.name}`}><Icon name="more" size={16} /></button></td></tr>)}</tbody>
-        </table></div>
+          <tbody>{plans.map((plan) => <tr key={plan.id}><td><strong className="table-primary">{plan.name}</strong></td><td>Billed {plan.frequency}</td><td><strong>{money(plan.base_price_paise)}</strong></td><td>{subscriptions.filter((subscription) => subscription.plan_id === plan.id).length}</td><td><Status tone="active">Available</Status></td><td /></tr>)}</tbody>
+        </table></div> : <div className="table-empty"><span className="empty-check"><Icon name="repeat" /></span><div><strong>No plans yet</strong><small>Create a plan to start a quotation.</small></div></div>}
       </section>
     </>
   );
 }
 
-function Customers({ invoices, onAdd, onCustomer }) {
+function Customers({ customers, invoices, canAdd, onAdd, onCustomer }) {
   return (
     <>
-      <PageHeader eyebrow="PEOPLE & RELATIONSHIPS" title="Customers" subtitle="Your customer relationships, subscriptions, and balances." action={<Button kind="primary" icon="plus" onClick={onAdd}>Add customer</Button>} />
+      <PageHeader eyebrow="PEOPLE & RELATIONSHIPS" title="Customers" subtitle="Customers with billing activity and accounts added in this session." action={canAdd && <Button kind="primary" icon="plus" onClick={onAdd}>Add customer</Button>} />
       <section className="content-card list-card">
-        <div className="list-toolbar"><div><h2>All customers</h2><span>{customers.length} customers</span></div><button className="select-chip">All customers <span>⌄</span></button></div>
+        <div className="list-toolbar"><div><h2>Customers</h2><span>{customers.length} customer accounts available</span></div></div>
         <div className="table-scroll"><table className="data-table full-table">
           <thead><tr><th>CUSTOMER</th><th>SUBSCRIPTIONS</th><th>OPEN BALANCE</th><th>STATUS</th><th /></tr></thead>
-          <tbody>{customers.map((customer) => <tr key={customer.name}>
-            <td><span className="customer-cell"><span className={`customer-avatar ${customer.color}`}>{customer.initials}</span><span><strong className="table-primary">{customer.name}</strong><small className="table-secondary">{customer.email}</small></span></span></td>
-            <td>{customer.subs} subscription</td><td><strong>{money(invoices.filter((invoice) => invoice.customer_name === customer.name).reduce((sum, invoice) => sum + invoice.balance_paise, 0))}</strong></td><td><Status tone="active">Active</Status></td><td><button className="row-more" onClick={onCustomer} aria-label={`Open ${customer.name} customer portal`}><Icon name="chevron" size={16} /></button></td>
+          <tbody>{customers.map((customer) => <tr key={customer.id}>
+            <td><span className="customer-cell"><span className={`customer-avatar ${customer.color}`}>{customer.initials}</span><span><strong className="table-primary">{customer.name}</strong><small className="table-secondary">{customer.email || `Customer account #${customer.id}`}</small></span></span></td>
+            <td>{customer.subs} subscription{customer.subs === 1 ? "" : "s"}</td><td><strong>{money(invoices.filter((invoice) => invoice.customer_id === customer.id).reduce((sum, invoice) => sum + invoice.balance_paise, 0))}</strong></td><td><Status tone="active">Known</Status></td><td />
           </tr>)}</tbody>
         </table></div>
       </section>
@@ -710,27 +707,28 @@ function Customers({ invoices, onAdd, onCustomer }) {
   );
 }
 
-function CustomerPortal({ subscriptions, invoices, onAction, onPay, onInvoice }) {
+function CustomerPortal({ user, subscriptions, invoices, onAction, onInvoice }) {
   const activeSubscription = subscriptions[0];
+  const displayName = user.company_name || user.full_name;
   return (
     <>
-      <div className="portal-welcome"><div className="portal-avatar">E</div><div><p className="eyebrow">WELCOME BACK</p><h1>Hello, Example Shop</h1><p>Here’s your subscription at a glance.</p></div><span className="portal-tag"><span /> PORTAL PREVIEW</span></div>
+      <div className="portal-welcome"><div className="portal-avatar">{displayName.slice(0, 1).toUpperCase()}</div><div><p className="eyebrow">WELCOME BACK</p><h1>Hello, {displayName}</h1><p>Here’s your subscription at a glance.</p></div><span className="portal-tag"><span /> CUSTOMER PORTAL</span></div>
       {activeSubscription ? <>
         <section className="portal-subscription">
           <div className="portal-sub-header"><div><span className="eyebrow">YOUR SUBSCRIPTION</span><Status tone={activeSubscription.status}>{activeSubscription.status}</Status></div><button className="row-more" aria-label="Subscription options"><Icon name="more" /></button></div>
           <h2>{activeSubscription.plan}</h2><p className="portal-sub-number">{activeSubscription.number} · Started {shortDate(activeSubscription.start_date)}</p>
-          <div className="portal-sub-stats"><div><small>Monthly total</small><strong>{money(activeSubscription.mrr_paise)}</strong></div><div><small>Next billing date</small><strong>{shortDate(activeSubscription.next_bill_date)}</strong></div><div><small>Includes</small><strong>Odoo integration</strong><small>₹560.00 add-on</small></div></div>
-          <div className="portal-actions">{activeSubscription.permitted_actions.map((action) => <Button key={action} onClick={() => onAction(activeSubscription.id, action)}>{action === "close" ? "Cancel subscription" : action[0].toUpperCase() + action.slice(1)}</Button>)}</div>
+          <div className="portal-sub-stats"><div><small>Subscription price</small><strong>{money(activeSubscription.mrr_paise)}</strong></div><div><small>Next billing date</small><strong>{shortDate(activeSubscription.next_bill_date)}</strong></div><div><small>Plan</small><strong>{activeSubscription.plan}</strong><small>{activeSubscription.frequency || "Recurring subscription"}</small></div></div>
+          {activeSubscription.permitted_actions.length > 0 && <div className="portal-actions">{activeSubscription.permitted_actions.map((action) => <Button key={action} onClick={() => onAction(activeSubscription.id, action)}>{action === "close" ? "Cancel subscription" : action[0].toUpperCase() + action.slice(1)}</Button>)}</div>}
         </section>
         <section className="content-card list-card portal-invoices">
-          <div className="list-toolbar"><div><h2>Your invoices</h2><span>Access billing history and payments</span></div><button className="subtle-link" onClick={onInvoice}>View all <Icon name="chevron" size={14} /></button></div>
+          <div className="list-toolbar"><div><h2>Your invoices</h2><span>Access your invoice history</span></div></div>
           {invoices.length ? <div className="table-scroll"><table className="data-table full-table">
             <thead><tr><th>INVOICE</th><th>ISSUED</th><th>AMOUNT</th><th>STATUS</th><th /></tr></thead>
-            <tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><strong className="table-primary">{invoice.number}</strong><small className="table-secondary">Due {shortDate(invoice.due_on)}</small></td><td>{shortDate(invoice.issued_on)}</td><td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} remaining` : "Paid in full"}</small></td><td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.paid_paise ? "partial" : invoice.status}>{invoice.balance_paise === 0 ? "Paid" : invoice.paid_paise ? "Partial" : "Due"}</Status></td><td>{invoice.balance_paise > 0 ? <button className="table-action-link" onClick={() => onPay(invoice.id)}>Pay invoice</button> : <button className="row-more" aria-label="View invoice" onClick={onInvoice}><Icon name="download" size={16} /></button>}</td></tr>)}</tbody>
+            <tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button className="invoice-number-link" onClick={() => onInvoice(invoice)}>{invoice.number}</button><small className="table-secondary">Due {shortDate(invoice.due_on)}</small></td><td>{shortDate(invoice.issued_on)}</td><td><strong>{money(invoice.total_paise)}</strong><small className="table-secondary">{invoice.balance_paise > 0 ? `${money(invoice.balance_paise)} remaining` : "Paid in full"}</small></td><td><Status tone={invoice.balance_paise === 0 ? "paid" : invoice.paid_paise ? "partial" : invoice.status}>{invoice.balance_paise === 0 ? "Paid" : invoice.paid_paise ? "Partial" : "Due"}</Status></td><td><button className="table-action-link" onClick={() => onInvoice(invoice)}>View invoice</button></td></tr>)}</tbody>
           </table></div> : <div className="table-empty portal-empty"><span className="empty-check"><Icon name="receipt" /></span><div><strong>No invoices yet</strong><small>Your invoices will appear here after your next billing run.</small></div></div>}
         </section>
       </> : <div className="table-empty"><span className="empty-check"><Icon name="repeat" /></span><div><strong>No active subscriptions</strong><small>There are no subscriptions available for this account.</small></div></div>}
-      <footer className="portal-footer">Customer portal preview <span>·</span> Need help? <a href="mailto:hello@brightloop.in">Contact Brightloop</a></footer>
+      <footer className="portal-footer">Secure customer portal <span>·</span> Need help? <a href="mailto:hello@brightloop.in">Contact Brightloop</a></footer>
     </>
   );
 }
@@ -741,6 +739,480 @@ function PageHeader({ eyebrow, title, subtitle, action }) {
 
 function SimpleMetric({ label, value, helper, icon }) {
   return <article className="simple-metric"><span className="metric-icon metric-icon-blue"><Icon name={icon} size={16} /></span><span className="simple-metric-label">{label}</span><strong>{value}</strong><small>{helper}</small></article>;
+}
+
+function DataEditor({ type, busy, error, customers, plans, products, onClose, onCreateProduct, onCreatePlan, onCreateQuotation, onRegisterCustomer }) {
+  const [selectedProductId, setSelectedProductId] = useState(String(products.find((product) => product.active)?.id || ""));
+  const [submitError, setSubmitError] = useState("");
+  const activeProducts = products.filter((product) => product.active);
+  const selectedProduct = activeProducts.find((product) => product.id === Number(selectedProductId));
+  const variants = selectedProduct?.variants || [];
+  const titles = {
+    product: "Add product",
+    plan: "Create a subscription plan",
+    quotation: "Create a quotation",
+    customer: "Add customer account",
+  };
+  const callbacks = {
+    product: onCreateProduct,
+    plan: onCreatePlan,
+    quotation: onCreateQuotation,
+    customer: onRegisterCustomer,
+  };
+  const canCreateQuotation = customers.length > 0 && plans.length > 0 && activeProducts.length > 0;
+
+  function submit(event) {
+    event.preventDefault();
+    setSubmitError("");
+    const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    Promise.resolve(callbacks[type](values)).catch((requestError) => setSubmitError(requestError.message));
+  }
+
+  return (
+    <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+      <form className="payment-modal data-editor" onSubmit={submit}>
+        <button className="modal-close" type="button" aria-label="Close" disabled={busy} onClick={onClose}>×</button>
+        <span className="modal-icon"><Icon name={type === "customer" ? "users" : type === "quotation" ? "file" : "box"} size={20} /></span>
+        <p className="eyebrow">BRIGHTLOOP WORKSPACE</p>
+        <h2>{titles[type]}</h2>
+        <p className="modal-help">The information is saved through the authenticated Brightloop API.</p>
+        {(submitError || error) && <div className="api-alert editor-alert" role="alert">{submitError || error}</div>}
+
+        {type === "product" && <>
+          <label className="form-label" htmlFor="product-name">Product name</label>
+          <input className="editor-input" id="product-name" name="name" required maxLength={200} />
+          <label className="form-label" htmlFor="product-type">Type</label>
+          <input className="editor-input" id="product-type" name="type" placeholder="service" required maxLength={80} />
+          <label className="form-label" htmlFor="product-sale-price">Sale price (INR)</label>
+          <input className="editor-input" id="product-sale-price" name="sale_price" type="number" min="0" step="0.01" required />
+          <label className="form-label" htmlFor="product-cost-price">Internal cost (INR)</label>
+          <input className="editor-input" id="product-cost-price" name="cost_price" type="number" min="0" step="0.01" defaultValue="0" />
+          <label className="form-label" htmlFor="product-notes">Notes</label>
+          <textarea className="editor-input" id="product-notes" name="notes" rows="2" maxLength={2000} />
+        </>}
+
+        {type === "plan" && <>
+          <label className="form-label" htmlFor="plan-name">Plan name</label>
+          <input className="editor-input" id="plan-name" name="name" required maxLength={200} />
+          <label className="form-label" htmlFor="plan-frequency">Billing frequency</label>
+          <select id="plan-frequency" name="frequency" defaultValue="monthly" required><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+          <label className="form-label" htmlFor="plan-price">Base price (INR)</label>
+          <input className="editor-input" id="plan-price" name="base_price" type="number" min="0" step="0.01" required />
+          <label className="form-label" htmlFor="plan-minimum">Minimum quantity</label>
+          <input className="editor-input" id="plan-minimum" name="minimum_quantity" type="number" min="1" step="1" defaultValue="1" required />
+        </>}
+
+        {type === "customer" && <>
+          <label className="form-label" htmlFor="customer-name">Full name</label>
+          <input className="editor-input" id="customer-name" name="full_name" required maxLength={200} />
+          <label className="form-label" htmlFor="customer-company">Company</label>
+          <input className="editor-input" id="customer-company" name="company_name" maxLength={200} />
+          <label className="form-label" htmlFor="customer-email">Email address</label>
+          <input className="editor-input" id="customer-email" name="email" type="email" required maxLength={254} />
+          <label className="form-label" htmlFor="customer-password">Temporary password</label>
+          <input className="editor-input" id="customer-password" name="password" type="password" autoComplete="new-password" minLength="10" required />
+        </>}
+
+        {type === "quotation" && <>
+          <label className="form-label" htmlFor="quote-customer">Customer</label>
+          <select id="quote-customer" name="customer" defaultValue="" required><option value="" disabled>Select customer</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} · #{customer.id}</option>)}</select>
+          <label className="form-label" htmlFor="quote-plan">Plan</label>
+          <select id="quote-plan" name="plan" defaultValue="" required><option value="" disabled>Select plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.base_price_paise)} / {plan.frequency}</option>)}</select>
+          <label className="form-label" htmlFor="quote-product">Product</label>
+          <select id="quote-product" name="product" value={selectedProductId} onChange={(event) => setSelectedProductId(event.target.value)} required><option value="" disabled>Select product</option>{activeProducts.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
+          {variants.length > 0 && <>
+            <label className="form-label" htmlFor="quote-variant">Variant</label>
+            <select id="quote-variant" name="variant" defaultValue=""><option value="">No variant</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {money(variant.price_delta_paise)} surcharge</option>)}</select>
+          </>}
+          <label className="form-label" htmlFor="quote-quantity">Quantity</label>
+          <input className="editor-input" id="quote-quantity" name="quantity" type="number" min="1" step="1" defaultValue="1" required />
+          <label className="form-label" htmlFor="quote-start">Start date</label>
+          <input className="editor-input" id="quote-start" name="start_date" type="date" defaultValue={dateInputValue(new Date())} required />
+          <label className="form-label" htmlFor="quote-expiry">Expiry date (exclusive)</label>
+          <input className="editor-input" id="quote-expiry" name="expiry_date" type="date" min={dateInputValue(new Date(Date.now() + 86400000))} defaultValue={dateInputValue(new Date(Date.now() + 365 * 86400000))} required />
+          {!canCreateQuotation && <div className="form-hint">Add a customer, plan, and active product before creating a quotation.</div>}
+        </>}
+
+        <div className="modal-actions"><Button onClick={onClose}>Cancel</Button><Button kind="primary" type="submit" disabled={busy || (type === "quotation" && !canCreateQuotation)}>{busy ? "Saving…" : "Save"}</Button></div>
+      </form>
+    </div>
+  );
+}
+
+function App() {
+  const [page, setPage] = useState("overview");
+  const [user, setUser] = useState(null);
+  const [authRestoring, setAuthRestoring] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [dataLoading, setDataLoading] = useState(false);
+  const [dataErrors, setDataErrors] = useState({});
+  const [operationError, setOperationError] = useState("");
+  const [dashboard, setDashboard] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [customerAccounts, setCustomerAccounts] = useState([]);
+  const [runResult, setRunResult] = useState(null);
+  const [notice, setNotice] = useState("");
+  const [paymentInvoice, setPaymentInvoice] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("bank");
+  const [actionBusy, setActionBusy] = useState(false);
+  const [editor, setEditor] = useState("");
+  const [printInvoice, setPrintInvoice] = useState(null);
+  const [search, setSearch] = useState("");
+  const dataRequestId = useRef(0);
+  const customerMode = user?.role === "customer";
+  const pageTitle = customerMode ? "Your subscriptions" : navItems.find((item) => item.id === page)?.label || "Overview";
+  const customers = useMemo(
+    () => user
+      ? [...new Map([
+        ...catalogCustomers(invoices, subscriptions, user),
+        ...customerAccounts,
+      ].map((customer) => [customer.id, customer])).values()]
+      : [],
+    [customerAccounts, invoices, subscriptions, user],
+  );
+  const filteredInvoices = useMemo(
+    () => invoices.filter((invoice) =>
+      `${invoice.number} ${invoice.customer_name}`.toLowerCase().includes(search.toLowerCase()),
+    ),
+    [invoices, search],
+  );
+
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    const requestId = ++dataRequestId.current;
+    setDataLoading(true);
+    setDataErrors({});
+    const now = new Date();
+    const from = dateInputValue(new Date(now.getFullYear(), now.getMonth(), 1));
+    const to = dateInputValue(now);
+    const requests = [
+      apiList("/api/subscriptions"),
+      apiList("/api/invoices"),
+      ...(customerMode ? [] : [
+        apiList("/api/products"),
+        apiList("/api/plans"),
+        apiRequest(`/api/dashboard?from=${from}&to=${to}`),
+        apiRequest("/api/billing/preview"),
+      ]),
+    ];
+    const results = await Promise.allSettled(requests);
+    if (requestId !== dataRequestId.current) return;
+    const subscriptionResult = results[0];
+    const invoiceResult = results[1];
+    const subscriptionData = subscriptionResult.status === "fulfilled" ? subscriptionResult.value : [];
+    const invoiceData = invoiceResult.status === "fulfilled" ? invoiceResult.value : [];
+    const productsResult = customerMode ? null : results[2];
+    const plansResult = customerMode ? null : results[3];
+    const dashboardResult = customerMode ? null : results[4];
+    const previewResult = customerMode ? null : results[5];
+    const productsData = productsResult?.status === "fulfilled" ? productsResult.value : [];
+    const plansData = plansResult?.status === "fulfilled" ? plansResult.value : [];
+    const normalizedSubs = subscriptionData.map((item) => normalizeSubscription(item, plansData, productsData, invoiceData, user));
+    setSubscriptions(normalizedSubs);
+    setInvoices(invoiceData.map((item) => normalizeInvoice(item, normalizedSubs)));
+    if (customerMode) {
+      setProducts([]);
+      setPlans([]);
+      setDashboard(null);
+      setPreview(null);
+    } else {
+      setProducts(productsData);
+      setPlans(plansData);
+      setDashboard(dashboardResult?.status === "fulfilled" ? dashboardResult.value : null);
+      setPreview(previewResult?.status === "fulfilled" ? previewResult.value : null);
+    }
+
+    const labels = ["subscriptions", "invoices", ...(customerMode ? [] : ["products", "plans", "dashboard", "billing preview"])];
+    const failures = {};
+    results.forEach((result, index) => {
+      if (result.status === "rejected") failures[labels[index]] = result.reason.message;
+    });
+    setDataErrors(failures);
+    setDataLoading(false);
+  }, [customerMode, user]);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setAuthRestoring(false);
+      return;
+    }
+    let active = true;
+    apiRequest("/api/auth/me", { token })
+      .then((currentUser) => { if (active) setUser(currentUser); })
+      .catch((error) => {
+        if (error.status === 401 || error.status === 403) clearToken();
+        if (active) setAuthError(error.message);
+      })
+      .finally(() => { if (active) setAuthRestoring(false); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (user && !authRestoring) void loadData();
+  }, [authRestoring, loadData, user]);
+
+  async function submitAuth(mode, values) {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      if (mode === "register") {
+        await apiRequest("/api/auth/register", {
+          method: "POST",
+          token: null,
+          body: {
+            email: values.email,
+            password: values.password,
+            full_name: values.full_name,
+            company_name: values.company_name || "",
+          },
+        });
+      }
+      const result = await apiRequest("/api/auth/login", {
+        method: "POST",
+        token: null,
+        body: { email: values.email, password: values.password },
+      });
+      storeToken(result.token);
+      setUser(result.user);
+      setPage("overview");
+      setOperationError("");
+      setDataErrors({});
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  function showNotice(message) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 3800);
+  }
+
+  async function perform(action, message, refresh = true) {
+    setOperationError("");
+    setActionBusy(true);
+    try {
+      const result = await action();
+      if (refresh) await loadData();
+      showNotice(message(result));
+      return result;
+    } catch (error) {
+      setOperationError(error.message);
+      return null;
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function runBilling() {
+    const result = await perform(
+      () => apiRequest("/api/billing/run", { method: "POST", body: {} }),
+      (response) => `${response.created_count} invoice${response.created_count === 1 ? "" : "s"} created · ${response.skipped_count} skipped · ${response.error_count} errors.`,
+    );
+    if (result) setRunResult(result);
+  }
+
+  async function recordPayment(event) {
+    event.preventDefault();
+    const invoice = invoices.find((item) => item.id === paymentInvoice);
+    const amountPaise = Math.round(Number(paymentAmount) * 100);
+    if (!invoice || !Number.isFinite(amountPaise) || amountPaise <= 0) {
+      setOperationError("Enter a payment amount greater than zero.");
+      return;
+    }
+    const result = await perform(
+      () => apiRequest(`/api/invoices/${invoice.id}/payments`, {
+        method: "POST",
+        body: { method: paymentMethod, amount_paise: amountPaise, paid_on: dateInputValue(new Date()), note: "" },
+      }),
+      () => `Payment of ${money(amountPaise)} recorded.`,
+    );
+    if (result) setPaymentInvoice(null);
+  }
+
+  async function transitionSubscription(id, action) {
+    const result = await perform(
+      () => apiRequest(`/api/subscriptions/${id}/transition`, { method: "POST", body: { action } }),
+      (subscription) => `${subscription.number} is now ${subscription.status}.`,
+    );
+    if (result) setPage("subscriptions");
+  }
+
+  async function createCatalogRecord(type, values) {
+    const isProduct = type === "product";
+    const payload = isProduct ? {
+      name: values.name,
+      type: values.type,
+      sale_price_paise: Math.round(Number(values.sale_price) * 100),
+      cost_price_paise: Math.round(Number(values.cost_price || 0) * 100),
+      notes: values.notes || "",
+      active: true,
+    } : {
+      name: values.name,
+      frequency: values.frequency,
+      base_price_paise: Math.round(Number(values.base_price) * 100),
+      minimum_quantity: Number(values.minimum_quantity || 1),
+      auto_close: false,
+      allow_pause: true,
+      allow_renew: true,
+      allow_cancel: true,
+    };
+    const result = await perform(
+      () => apiRequest(`/api/${isProduct ? "products" : "plans"}`, { method: "POST", body: payload }),
+      (record) => `${isProduct ? "Product" : "Plan"} "${record.name}" created.`,
+    );
+    if (result) setEditor("");
+  }
+
+  async function createQuotation(values) {
+    const result = await perform(async () => {
+      const subscription = await apiRequest("/api/subscriptions", {
+        method: "POST",
+        body: {
+          customer: Number(values.customer),
+          plan: Number(values.plan),
+          start_date: values.start_date,
+          expiry_date: values.expiry_date,
+          lines: [{
+            product_id: Number(values.product),
+            variant_id: values.variant ? Number(values.variant) : null,
+            quantity: Number(values.quantity || 1),
+          }],
+        },
+      });
+      return apiRequest(`/api/subscriptions/${subscription.id}/transition`, {
+        method: "POST",
+        body: { action: "quote" },
+      });
+    }, (subscription) => `Quotation ${subscription.number} created.`);
+    if (result) setEditor("");
+  }
+
+  async function registerCustomer(values) {
+    const result = await perform(
+      () => apiRequest("/api/auth/register", {
+        method: "POST",
+        body: {
+          email: values.email,
+          password: values.password,
+          full_name: values.full_name,
+          company_name: values.company_name,
+          role: "customer",
+        },
+      }),
+      (customer) => `Customer account for ${customer.full_name} created.`,
+      false,
+    );
+    if (result) {
+      const name = result.company_name || result.full_name;
+      setCustomerAccounts((accounts) => [
+        ...accounts.filter((account) => account.id !== result.id),
+        {
+          id: result.id,
+          name,
+          email: result.email,
+          initials: name.split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase(),
+          subs: 0,
+          color: "lavender",
+        },
+      ]);
+      setEditor("");
+    }
+  }
+
+  function navigate(id) {
+    setPage(id);
+    setSearch("");
+  }
+
+  function signOut() {
+    dataRequestId.current += 1;
+    clearToken();
+    setUser(null);
+    setPage("overview");
+    setInvoices([]);
+    setSubscriptions([]);
+    setProducts([]);
+    setPlans([]);
+    setCustomerAccounts([]);
+    setPreview(null);
+    setDashboard(null);
+    setDataErrors({});
+    setDataLoading(false);
+    setOperationError("");
+    setAuthError("");
+    setPrintInvoice(null);
+  }
+
+  if (authRestoring) return <main className="auth-page"><div className="auth-loading" role="status">Restoring your secure session…</div></main>;
+  if (!user) return <Auth onLogin={submitAuth} busy={authBusy} error={authError} />;
+  if (printInvoice) return <InvoicePrint invoice={printInvoice} onClose={() => setPrintInvoice(null)} />;
+
+  const visibleNavItems = customerMode ? [] : navItems.filter((item) => item.id !== "customers" || user.role === "admin");
+  const canManageCatalog = user.role === "admin";
+
+  return (
+    <div className={`app-shell ${customerMode ? "customer-shell" : ""}`}>
+      {!customerMode && <aside className="sidebar">
+        <a className="brand" href="#" onClick={(event) => { event.preventDefault(); navigate("overview"); }}>
+          <span className="brand-mark"><span /></span><span>brightloop<span className="brand-dot">.</span></span>
+        </a>
+        <div className="workspace-switch"><span className="workspace-avatar">{(user.company_name || user.full_name || "B").slice(0, 1)}</span><span className="workspace-copy"><strong>{user.company_name || "Brightloop"}</strong><small>Workspace</small></span></div>
+        <p className="nav-caption">WORKSPACE</p>
+        <nav className="side-nav" aria-label="Main navigation">
+          {visibleNavItems.map((item) => <button className={`nav-link ${page === item.id ? "nav-link-active" : ""}`} key={item.id} aria-label={item.label} onClick={() => navigate(item.id)}>
+            <Icon name={item.icon} size={18} /><span>{item.label}</span>
+            {item.id === "invoices" && invoices.some((invoice) => invoice.balance_paise > 0) && <span className="nav-badge">{invoices.filter((invoice) => invoice.balance_paise > 0).length}</span>}
+          </button>)}
+        </nav>
+        <div className="sidebar-spacer" />
+        <div className="help-card"><span className="help-icon"><Icon name="spark" size={17} /></span><strong>Need a hand?</strong><p>Your billing team is one click away.</p><a href="mailto:hello@brightloop.in">Contact support →</a></div>
+        <button className="profile-button" onClick={signOut}><span className="profile-avatar">{user.full_name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span><span className="profile-copy"><strong>{user.full_name}</strong><small>{user.role}</small></span><span className="signout-label">Sign out</span></button>
+      </aside>}
+      <div className="main-column">
+        <header className="topbar">
+          <div className="mobile-brand"><span className="brand-mark"><span /></span> brightloop<span className="brand-dot">.</span></div>
+          <div className="breadcrumb">{!customerMode && <><span>Workspace</span><Icon name="chevron" size={13} /></>}<strong>{customerMode ? "Customer portal" : pageTitle}</strong></div>
+          <div className="topbar-actions">
+            {!customerMode && <label className="search-field"><Icon name="search" size={17} /><input aria-label="Search invoices" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search invoices..." /><kbd>⌘ K</kbd></label>}
+            <span className="user-role-chip">{customerMode ? "Customer portal" : user.role === "admin" ? "Administrator" : "Staff workspace"}</span>
+            <button className="topbar-signout" onClick={signOut}>Sign out</button>
+          </div>
+        </header>
+        <main className="page-content">
+          {Object.keys(dataErrors).length > 0 && <div className="api-alert" role="alert"><strong>Some data could not be loaded</strong><span>{Object.entries(dataErrors).map(([name, error]) => `${name}: ${error}`).join(" · ")}</span><button className="api-retry" onClick={() => void loadData()}>Retry</button></div>}
+          {operationError && <div className="api-alert" role="alert"><strong>Action could not be completed</strong><span>{operationError}</span><button className="api-retry" onClick={() => setOperationError("")}>Dismiss</button></div>}
+          {dataLoading && <div className="loading-banner" role="status">Loading the latest data from Brightloop…</div>}
+          {customerMode ? <CustomerPortal user={user} subscriptions={subscriptions} invoices={invoices} onAction={transitionSubscription} onInvoice={setPrintInvoice} /> :
+            page === "overview" ? <Overview preview={preview} dashboard={dashboard} invoices={invoices} subscriptions={subscriptions} runResult={runResult} onRun={runBilling} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onNavigate={navigate} loading={dataLoading} /> :
+            page === "subscriptions" ? <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} /> :
+            page === "quotations" ? <Quotations subscriptions={subscriptions} customers={customers} plans={plans} products={products} onCreate={() => setEditor("quotation")} /> :
+            page === "invoices" ? <Invoices invoices={filteredInvoices} onPayment={(invoice) => { setPaymentInvoice(invoice.id); setPaymentAmount(""); }} onPrint={() => filteredInvoices[0] && setPrintInvoice(filteredInvoices[0])} onInvoice={setPrintInvoice} /> :
+            page === "catalog" ? <Catalog products={products} plans={plans} subscriptions={subscriptions} canManage={canManageCatalog} onCreateProduct={() => setEditor("product")} onCreatePlan={() => setEditor("plan")} /> :
+            user.role === "admin" ? <Customers customers={customers} invoices={invoices} canAdd onAdd={() => setEditor("customer")} onCustomer={() => showNotice("Choose a customer record to review their billing data.")} /> :
+            <Subscriptions subscriptions={subscriptions} onAction={transitionSubscription} onNavigate={navigate} />}
+        </main>
+      </div>
+      {notice && <div className="toast" role="status"><span className="toast-check"><Icon name="check" size={15} /></span>{notice}</div>}
+      {paymentInvoice !== null && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPaymentInvoice(null); }}>
+        <form className="payment-modal" onSubmit={recordPayment}>
+          <button className="modal-close" type="button" aria-label="Close" onClick={() => setPaymentInvoice(null)}>×</button>
+          <span className="modal-icon"><Icon name="receipt" size={20} /></span><p className="eyebrow">Record payment</p>
+          <h2>{invoices.find((invoice) => invoice.id === paymentInvoice)?.number}</h2><p className="modal-help">The backend checks this payment against the invoice’s remaining balance.</p>
+          <label className="form-label" htmlFor="payment-amount">Amount (INR)</label><div className="amount-input"><span>₹</span><input id="payment-amount" type="number" min="0.01" step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} autoFocus required /></div>
+          <label className="form-label" htmlFor="payment-method">Payment method</label><select id="payment-method" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="bank">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="upi">UPI</option></select>
+          <div className="modal-actions"><Button onClick={() => setPaymentInvoice(null)}>Cancel</Button><Button kind="primary" type="submit" disabled={actionBusy}>{actionBusy ? "Recording…" : "Record payment"}</Button></div>
+        </form>
+      </div>}
+      {editor && <DataEditor type={editor} busy={actionBusy} error={operationError} customers={customers} plans={plans} products={products} onClose={() => { setEditor(""); setOperationError(""); }} onCreateProduct={(values) => createCatalogRecord("product", values)} onCreatePlan={(values) => createCatalogRecord("plan", values)} onCreateQuotation={createQuotation} onRegisterCustomer={registerCustomer} />}
+    </div>
+  );
 }
 
 export default App;
