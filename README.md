@@ -7,8 +7,11 @@ Subscription billing demo built by four owners. Read [CONTRACT.md](CONTRACT.md) 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m unittest discover -s gsk/tests -v
+.venv/bin/python manage.py test gsk.tests --settings=gsk.test_settings
+.venv/bin/python manage.py check --settings=gsk.test_settings
 ```
 
 Once `yascn/` and `aliar/` are delivered, GSK will connect their models in `gsk/integration.py`, register their routes in `gsk/urls.py`, and then run migrations and the full Django check. The app is intentionally not migrated with Django's default User: `yascn.User` must exist before the first migration.
+
+`gsk.test_settings` is only for isolated billing API tests. It omits unfinished teammate apps and uses Django's User solely in that test process; never use it for production migrations.
 
