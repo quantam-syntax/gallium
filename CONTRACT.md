@@ -17,7 +17,7 @@ Django REST Framework + SQLite backend, React/Vite frontend. `gsk/` owns project
 | ALIAR | Invoice | `id`, unique `number`, `subscription_id`, `customer_id`, `period_start`, exclusive `period_end`, `revision`, `issued_on`, `due_on`, `status`, `subtotal_paise`, `discount_paise`, `tax_paise`, `total_paise`, immutable `snapshot`, optional `sent_at`. |
 | ALIAR | Payment | `id`, `invoice_id`, `method`, `amount_paise`, `paid_on`, `note`, `created_by_id`. |
 
-For a fixed discount, `value` is paise; for a percentage discount, `value` is basis points. A subscription line's `unit_price_paise` is the effective price **including** its chosen variant surcharge, so billing never adds that surcharge twice. Template lines copy to the subscription; later catalog edits do not rewrite them. Product discounts apply to eligible product lines; whole-subscription discounts require assignment to a subscription. Plan availability controls new sign-ups; subscription expiry stops existing billing.
+For a fixed discount, `value` is paise; for a percentage discount, `value` is basis points. A subscription line's `unit_price_paise` is the effective price **including** its chosen variant surcharge, so billing never adds that surcharge twice. Template lines copy to the subscription; later catalog edits do not rewrite them. Bill outstanding past periods before changing subscription lines or quantities so catch-up invoices use the old terms; the edit affects the next cycle. Product discounts apply to eligible product lines; whole-subscription discounts require assignment to a subscription. Plan availability controls new sign-ups; subscription expiry stops existing billing.
 
 ## Statuses and API
 
@@ -44,3 +44,7 @@ GSK reads due subscriptions and advances `next_bill_date` transactionally after 
 ALIAR enforces unique `(subscription, period_start, revision)` and at most one non-cancelled invoice per `(subscription, period_start)`. Automatic reruns skip any period already represented by an invoice, including cancelled ones; staff reissue creates the next revision. Payments must be positive, cannot exceed balance, and are accepted only on confirmed invoices; zero balance sets `paid`.
 
 Hour 4 gate: fresh migrations, Django checks, auth/ownership smoke tests, and React build. Hour 6 gate: product/variant → plan/template → active subscription → preview → one invoice → partial payment → dashboard; second billing run creates zero invoices and preview totals match saved invoice totals. Fix failures before optional AI work.
+
+## GSK Python adapter handoff
+
+`gsk.service.BillingCandidate` is the read shape for one active due subscription. GSK's adapter must implement `due_candidates(as_of)`, `invoice_exists(subscription_id, period_start)`, and `create_period_if_missing(candidate, period, snapshot)`. YASCN supplies the subscription query and model fields; ALIAR supplies invoice creation and the unique period/revision constraints. `create_period_if_missing` must atomically recheck for an existing invoice, save the snapshot, increment applied discount usage, advance `next_bill_date`, and return `{ "id": ..., "number": ... }`, or return `None` if already invoiced. GSK connects the two apps inside `gsk/integration.py`; no teammate edits another owner's directory.
